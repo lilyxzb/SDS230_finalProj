@@ -11,6 +11,9 @@ library(TeachingDemos)
 library(plyr)
 library(dplyr)
 library(tidyr)
+library(TeachingDemos)
+library(plyr)
+source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # boxplot with outlier function
 wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
 
 ```
@@ -64,7 +67,7 @@ abline(lm1$coef, col = "blue", lwd = 3)
 
 
 ```
-*discuss the plot, what it suggests, what the r and slope mean, etc. next,  Bootstrap this data to get confidence intervals for the correlation AND for the regression slope.*
+*discuss the plot (heteroskedasticity, violation of linear regrssion assumption that variance all have constant variance), what it suggests, what the r and slope mean, etc. next,  Bootstrap this data to get confidence intervals for the correlation AND for the regression slope. Perhaps this will help heteroskedasticity?*
 ### Bootstrap CI for Correlation 
 ```{r}
 N <- nrow(mort)
@@ -115,15 +118,43 @@ summary(lm1)
 ```
 *what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11*
 
+### Correlation, transformed logit measles immunization, since the value is a percentage that has mostly high numbrs close to 100%
+```{r}
+summary(mort$Measles) # there are no 0s in the data
+
+mort$logitMeasles <- logit(mort$Measles)
+
+summary(mort$logitMeasles)
+
+plot(mort$InfMort, mort$logitMeasles)
+# correlation test
+cor2 <- cor(mort$logitMeasles,mort$InfMort);cor2
+
+# fit linear regression model
+lm2 <- lm(InfMort ~ logitMeasles, data = mort)
+
+#plot 
+plot(mort$InfMort, mort$logitMeasles, main = "Infant Mortality Rate vs logit Measles Immunization Rate", xlab = "logit % of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
+     pch = 19, col = "red")
+mtext(paste("r = ", round(cor2, 2) , ", slope = ", round(lm2$coef[2], 2)))
+abline(lm2$coef, col = "blue", lwd = 3)
+
+
+```
+
+*this...does not look good*
+
+
+
 ### Multiple Regression
 #### look at response variable Military Expenditures
 ```{r}
 summary(wb$Military) #note: there are NA and 0 in data
-boxplot(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", horizontal = T)
-hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)")
+boxplot(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", horizontal = T, xlab = "% military expenditure")
+hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", xlab = "% military expenditure")
 qqPlot(wb$Military, main = "Military Expenditures (% of GDP)", pch = 19)
 ```
-*These plots all suggest we might want to look at things on the logit because its %. logit function is log(p/(1-p)) or it is log(%/(100-%))*
+*The data is heavily right skewed and not normally distributed. These plots all suggest we might want to look at things on the logit because its %. logit function is log(p/(1-p)) or it is log(%/(100-%))*
 
 ```{r}
 
@@ -133,10 +164,18 @@ sort(wb$logitMilitary)
 summary(wb$logitMilitary)
 hist(wb$logitMilitary)
 qqPlot(wb$logitMilitary, pch = 19)
-boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of GDP", horizontal = T)
+boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of GDP", ylab = "logit military expenditure")
+
 
 ```
-*Now we have a more normally and uniformally distributed response variable and we begin to look at the predictor variables. The extreme lower deviations in the lower left corner of the plot are the countries with extremely low military expenditure. First, we make correlation plot of all the possible predictors we want to include in our model*
+*Now the data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers spending more and less than what we might expect from a normal distribution. We can see the countries that these outliers belong to below.*
+
+```{r}
+boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure")
+```
+
+
+*Now that our response variable is transformed, we can begin to look at the relationships with this transformed variable and some potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model*
 ```{r}
 
 ```
