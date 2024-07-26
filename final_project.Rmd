@@ -1,0 +1,150 @@
+---
+title: "Final_project_sds230"
+output: word_document
+date: "2024-07-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(TeachingDemos)
+library(plyr)
+library(dplyr)
+library(tidyr)
+wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
+
+```
+
+# Introduction
+
+## data explanation
+
+## data cleaning
+
+
+## descriptive plots, summary information
+
+
+
+```{r}
+
+```
+
+# Analysis
+
+
+## T Test
+*We are invigating whether there is a significant difference in mean  forest area in 1994 and 2014 using paired t test, asking the question is the overall change positive or negative*
+```{r}
+summary(wb$Forest94)
+summary(wb$Forest14)
+wb$diffForest <- wb$Forest94 - wb$Forest14
+t.test(wb$diffForest)
+```
+
+
+## Correlation 
+*Introduction to quesiton we are investigation. try logit to measles immunization, may need to subtract when taking logit, correlated to infant mortality?*
+```{r, echo=FALSE}
+
+# remove NAs 
+mort <- na.omit(wb %>% select(Measles,InfMort))
+
+# correlation test
+cor1 <- cor(mort$Measles,mort$InfMort)
+
+# fit linear regression model
+lm1 <- lm(InfMort ~ Measles, data = mort)
+
+#plot 
+plot(mort, main = "Infant Mortality Rate vs Measles Immunization Rate", xlab = "% of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
+     pch = 19, col = "red")
+mtext(paste("r = ", round(cor1, 2) , ", slope = ", round(lm1$coef[2], 2)))
+abline(lm1$coef, col = "blue", lwd = 3)
+
+
+```
+*discuss the plot, what it suggests, what the r and slope mean, etc. next,  Bootstrap this data to get confidence intervals for the correlation AND for the regression slope.*
+### Bootstrap CI for Correlation 
+```{r}
+N <- nrow(mort)
+
+#Specify how many boostrap samples to take
+n_samp <- 10000
+
+corResults <- rep(NA, n_samp)
+bResults <- rep(NA, n_samp) 
+
+for(i in 1:n_samp){
+  #get vector of rows in our fake sample
+  s <- sample(1:N, N , replace = T)
+  fakeData <-  mort[s, ]
+    
+  #Get bootstrapped correlation and regression slope
+  corResults[i] <- cor(fakeData[, 1], fakeData[, 2])
+  bResults[i] <- lm(fakeData[, 2] ~ fakeData[, 1])$coef[2]
+
+}
+
+#Get percentiles for 2.5 and 97.5
+ci_r <- quantile(corResults, c(.025, .975))
+ci_slope <- quantile(bResults, c(.025, .975))
+
+#Histogram of bootstrapped correlation values with CI's (both bootstrapped and theoretical)
+hist(corResults, col = "blue", main = "Bootstrapped Correlations", xlab = "Sample Correlation", breaks = 50)
+abline(v = ci_r, lwd = 3, col = "red")
+abline(v = cor.test(mort$Measles, mort$InfMort)$conf.int, lwd = 3, col = "green", lty = 2)
+legend(-.4, 350, c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
+
+library(car)
+qqPlot(corResults)
+```
+### Boostrap CI for Correlation Slope
+```{r}
+#get regression results again
+lm1 <- lm(InfMort ~ Measles, data = mort)
+
+#Histogram of bootstrapped regression slopes with CI's (both bootstrapped and theoretical)
+hist(bResults, col = "blue", main = "Bootstrapped Slopes", xlab = "Sample Slope", breaks = 50)
+abline(v = ci_slope, lwd = 3, col = "red")
+abline(v = confint(lm1,'Measles'), lwd = 3, col = "green", lty = 2)
+legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
+
+#reminder of regression results
+summary(lm1)
+```
+*what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11*
+
+### Multiple Regression
+#### look at response variable Military Expenditures
+```{r}
+summary(wb$Military) #note: there are NA and 0 in data
+boxplot(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", horizontal = T)
+hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)")
+qqPlot(wb$Military, main = "Military Expenditures (% of GDP)", pch = 19)
+```
+*These plots all suggest we might want to look at things on the logit because its %. logit function is log(p/(1-p)) or it is log(%/(100-%))*
+
+```{r}
+
+
+wb$logitMilitary <- logit(wb$Military + .2) # since there are zeros in the data
+sort(wb$logitMilitary)
+summary(wb$logitMilitary)
+hist(wb$logitMilitary)
+qqPlot(wb$logitMilitary, pch = 19)
+boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of GDP", horizontal = T)
+
+```
+*Now we have a more normally and uniformally distributed response variable and we begin to look at the predictor variables. The extreme lower deviations in the lower left corner of the plot are the countries with extremely low military expenditure. First, we make correlation plot of all the possible predictors we want to include in our model*
+```{r}
+
+```
+
+
+
+
+
+
+
+## conclusion and summary
