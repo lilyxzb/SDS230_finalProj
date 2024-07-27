@@ -47,7 +47,10 @@ t.test(wb$diffForest)
 
 
 ## Correlation 
+*discuss assumptinos of correlation and linear regressin, which i believe is a GLM so need to talk ab..out that too* 
+Linear regression is a type of generalized linear model used to .. the assumptions of GLM is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, for simple linear regression, the variables must be linearly related.
 *Introduction to quesiton we are investigation. try logit to measles immunization, may need to subtract when taking logit, correlated to infant mortality?*
+First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. A quick look at the Pearson's correlation coefficeint, r,  between these two variables shows a medium negative association between the two variables. Fitting a linear model gives us the slope and we can plot this linear regression on the data.
 ```{r, echo=FALSE}
 
 # remove NAs 
@@ -64,10 +67,16 @@ plot(mort, main = "Infant Mortality Rate vs Measles Immunization Rate", xlab = "
      pch = 19, col = "red")
 mtext(paste("r = ", round(cor1, 2) , ", slope = ", round(lm1$coef[2], 2)))
 abline(lm1$coef, col = "blue", lwd = 3)
+```
+In the plot above, we see that while there does seem to be some sort of relationship, perhap a line is not the best option. We can further investigate by looking at the plot of fit vs studentized residuals and a normal quantile plot of the residuals.
 
+```{r}
+myResPlots2(lm1)
 
 ```
-*discuss the plot (heteroskedasticity, violation of linear regrssion assumption that variance all have constant variance), what it suggests, what the r and slope mean, etc. next,  Bootstrap this data to get confidence intervals for the correlation AND for the regression slope. Perhaps this will help heteroskedasticity?*
+Sure enough, in the residual plot, we see heteroskedasticity and some outliers. The residuals approximate normality but there is some variability in the lower quartiles that we don't like to see for a normal distribution.
+
+*discuss the plot (heteroskedasticity, violation of linear regression assumption that variance all have constant variance, semi normal residuals, not. great but not terrible...). Correlation does not seem to be the best model, as the two variables look related but we are not confident it is a linear association. Perhaps  Bootstrapping this data to get confidence intervals for the correlation AND for the regression slope will help account for the data's variability. Perhaps this will help heteroskedasticity?*
 ### Bootstrap CI for Correlation 
 ```{r}
 N <- nrow(mort)
@@ -116,7 +125,7 @@ legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red")
 #reminder of regression results
 summary(lm1)
 ```
-*what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11*
+*what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11. BOotstrap CI captures more variability of the correlatin and slopes, perhaps due to the violated assumptions of correlatin in that there is some heteroskedasticity that we saw earlier in the fit vs residuals. Although we did bootstrap the data to find bootstrapped confidence intervals for correlation adn slope, since we are not confident the data itself is linearlly associated, the effectiveness of doing a correlation test is perhaps not very strong *
 
 ### Correlation, transformed logit measles immunization, since the value is a percentage that has mostly high numbrs close to 100%
 ```{r}
@@ -142,9 +151,76 @@ abline(lm2$coef, col = "blue", lwd = 3)
 
 ```
 
-*this...does not look good*
+*this...does not look good. The correlation is actually slightly worse when taking logit of measles immunization rate. *
 
 
+### Correlation between % of total Population in rural areas vs GNI per capita 
+Another set of variables that may be linearly related are the % of the population in rural areas and GNI. First, we take a look at the distribution of the variables to see if the assumptions of correlation and linear regression are met.
+```{r}
+summary(wb$Rural) #has 0s and NA
+summary(wb$GNI) # has NA
+ruralGNI <- na.omit(wb %>% select(Rural,GNI,Country))
+
+
+#take a look at % rural area variable
+hist(ruralGNI$Rural, main = "Histogram of % Population in Rural Area", xlab = "%", col = "orange", breaks = 30) 
+qqPlot(ruralGNI$Rural, main = "Normal Quantile plot of % Population in Rural Area")
+```
+*Looking at the histogram of % rural population is not particularly informative by itself, but looking at the normal quantile plot tells us that the data is close to but not exactly normally distributed. On both tails of the distribution, there are deviations from the noraml distribution and its a bit wider than we would like. Since we are looking at percentage, we can try a logit transformation that transforms the data using log(%/(100-%)). *
+
+```{r}
+ruralGNI$logitRural <- logit(ruralGNI$Rural)
+hist(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area", col = "orange") # actually looks more left skewed when taking sqrt of %rural 
+qqPlot(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area")
+```
+Performing a logit transformation on the % population in rural areas made the histogram more symetrical, although there is still a slight left skew. The Normal quantile plot looks better, but we can still see there are a few countries that have an unexpectedly low amount of % living in rural areas. Out of curiousity, we can try to identify these outliers with a boxplot. 
+```{r, fig.height=5,fig.width=6}
+
+boxplot.with.outlier.label(ruralGNI$logitRural, ruralGNI$Country, col = "pink",main = "Boxplot of logit % Rural", ylab = "logit % Rural", horz = T)
+```
+Based on the box plot with country labels, the countries with extremely low % percentage of population living in rural areas include Singapore, which is a city state, Nauru which is a beach island in Oceania, and Macao which is another city state. It makes sense that a beachy island and city states with high population density would have very low % of people living in rural areas. These city states would have relatively smaller land with higher population density, while Nauru has an extremely low rural population.
+
+Next, we can look at the distribution of GNI per capita.
+
+
+```{r}
+# take a look at GNI
+hist(ruralGNI$GNI, main = "Histogram of GNI per capita", col = "green") # extremely right skewed. try log transformation
+qqPlot(ruralGNI$GNI, main = "Histogram of GNI per capita")
+```
+Since the distribution looks very right skewed, we may try a log transformation, which does look better. The data approximates a normal distribution and is more unfirom and symmetrical, although it shoul dbe noted there are a few more countries with higher GNI than we may expect for a normal distirbution, and these obsevations do stick out in the histogram and normal quantile plot.
+
+```{r}
+# try log transformation
+ruralGNI$logGNI <- log(ruralGNI$GNI)
+hist(ruralGNI$logGNI, main = "Histogram of log GNI per capita", col = "green") # more symmetrical 
+qqPlot(ruralGNI$logGNI, main = "Histogram of log GNI per capita")
+
+```
+We can take our transformed variables, log GNI per capita and logit % of population in rural areas and fit them to a linear model and determine their correlation coefficients, slope, and rsquared. Pearson's r has a value of -.7 indicating there is a semi-strong negative correlation between our variables of interest. By performing a t-test with 185 degrees of freedom, we get a p value of 2E-16 which is well below the alpha level .05. Therefore we can reject the null hypothesis that the true correlation is not equal to zero. Additionally, by summarizing our linear model, we can see that logGNI is a significant predictor of logit % of population living in a rural area. In otherwords, for every one unit increase in logGNI, we can expect a .57% decrease in logit % of people living in a rural area. The rsquared reveals that about 49% of the variance of the response variable can be explained by the independent variable. Overall, we can conclude that performing simple linear regression and correlation is a good fit for the data, and logit rural population % and log GNI are negatively correlated. 
+```{r}
+#fit linear regression model
+lm3 <- lm(logitRural ~ logGNI, data = ruralGNI)
+# is the model significant
+summary(lm3)
+# calculate correlation 
+cor3 <- cor(ruralGNI$logitRural,ruralGNI$logGNI)
+# Is the correlation significant?
+cor.test(ruralGNI$logitRural,ruralGNI$logGNI)
+#plot % rural vs log GNI 
+plot(logitRural ~ logGNI, data = ruralGNI, main = "logit Rural Population (% of Total Population) vs log GNI", xlab = "log GNI per capita", ylab = "logit Rural Population %",
+     pch = 19, col = "violet")
+mtext(paste("r = ", round(cor3, 2) , ", rsquared = ", round((abs(cor3))**2,2) , ", slope = ", round(lm3$coef[2], 2)))
+abline(lm3$coefficients, col = "blue", lwd = 3)
+
+```
+
+In addition, we can see if the model residuals are normally and unforimally distirbuted
+```{r}
+myResPlots2(lm3)
+
+```
+*According to the residual plots, the residuals look normal and don't show signs we should be worried about heteroskedasticity. The scatterplot shows a strong negative relationship with a (r = 0.71, slope = -11.67). The relationship between log GNI per capita and % of population living in rural area seems pretty linear, so measuring correlation and using a linear model for these variables seems like a good choice.*
 
 ### Multiple Regression
 #### look at response variable Military Expenditures
