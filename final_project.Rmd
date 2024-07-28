@@ -13,7 +13,8 @@ library(dplyr)
 library(tidyr)
 library(TeachingDemos)
 library(plyr)
-source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # boxplot with outlier function
+#source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # boxplot with outlier function
+source("/Users/lilybroach/Desktop/YaleSDS230/regJDRS.txt")
 wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
 
 ```
@@ -50,12 +51,51 @@ t.test(wb$diffForest)
 *discuss assumptinos of correlation and linear regressin, which i believe is a GLM so need to talk ab..out that too* 
 Linear regression is a type of generalized linear model used to .. the assumptions of GLM is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, for simple linear regression, the variables must be linearly related.
 *Introduction to quesiton we are investigation. try logit to measles immunization, may need to subtract when taking logit, correlated to infant mortality?*
-First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. A quick look at the Pearson's correlation coefficeint, r,  between these two variables shows a medium negative association between the two variables. Fitting a linear model gives us the slope and we can plot this linear regression on the data.
-```{r, echo=FALSE}
-
+First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We will likely need to perform some transformations ot these variables so that they are more symmetrical and uniformly distributed.
+```{r}
 # remove NAs 
 mort <- na.omit(wb %>% select(Measles,InfMort))
+hist(mort$Measles)
+hist(mort$InfMort)
+```
+### Boxcox Transformation 
 
+```{r}
+# determine best transformation for lm1, 
+lm1 <- lm(InfMort ~ Measles, data = mort)
+
+trans1 <- boxCox(lm1)
+trans1$x[which.max(trans1$y)]
+```
+*applying power of .22 transformation, plot 1, both, the other, compare the distributions between all of them*
+```{r}
+# both raised to .22
+mort$transMeasles <- (mort$Measles)**.22
+mort$transInfMort <- (mort$InfMort)**.22
+
+lmb <- lm(transInfMort ~ transMeasles, data = mort)
+summary(lmb)
+myResPlots2(lmb)
+mtext("Infant Mortality^.22 and Measles^.22")
+
+#infmort raised to .22
+lmi <- lm(transInfMort ~ Measles, data = mort)
+summary(lmi)
+myResPlots2(lmi)
+mtext("Infant Mortality^.22")
+
+# measles rasied to .22 
+lmm <-  lm(InfMort ~ transMeasles, data = mort)
+summary(lmm)
+myResPlots2(lmm)
+mtext("Measles^.22")
+
+```
+Even after raising the variables in various combinations to the power of .22, we see non-normality and severe heteroskedasticity in the residual plots for all the combinations of raising the variables to lambda. The variables may not be linearlly related, and this violates the assumption of linearity for correlation testing.
+
+*should i plot each of these transformation combinations before bootstrapping for confidence interval and slope?*
+*may delete the following chunk, if not*
+```{r, echo=FALSE}
 # correlation test
 cor1 <- cor(mort$Measles,mort$InfMort)
 
@@ -63,21 +103,17 @@ cor1 <- cor(mort$Measles,mort$InfMort)
 lm1 <- lm(InfMort ~ Measles, data = mort)
 
 #plot 
-plot(mort, main = "Infant Mortality Rate vs Measles Immunization Rate", xlab = "% of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
+plot(InfMort ~ Measles, data = mort, main = "Infant Mortality Rate vs Measles Immunization Rate", xlab = "% of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
      pch = 19, col = "red")
 mtext(paste("r = ", round(cor1, 2) , ", slope = ", round(lm1$coef[2], 2)))
 abline(lm1$coef, col = "blue", lwd = 3)
-```
-In the plot above, we see that while there does seem to be some sort of relationship, perhap a line is not the best option. We can further investigate by looking at the plot of fit vs studentized residuals and a normal quantile plot of the residuals.
-
-```{r}
-myResPlots2(lm1)
 
 ```
-Sure enough, in the residual plot, we see heteroskedasticity and some outliers. The residuals approximate normality but there is some variability in the lower quartiles that we don't like to see for a normal distribution.
 
-*discuss the plot (heteroskedasticity, violation of linear regression assumption that variance all have constant variance, semi normal residuals, not. great but not terrible...). Correlation does not seem to be the best model, as the two variables look related but we are not confident it is a linear association. Perhaps  Bootstrapping this data to get confidence intervals for the correlation AND for the regression slope will help account for the data's variability. Perhaps this will help heteroskedasticity?*
-### Bootstrap CI for Correlation 
+
+*therefore, we do boostrap confidence interval for correlation and slope to try and get an estimate of the true correlation, since the assumptions for linear regression adn correlation ahvebeen violated (firstly because residuals show hetereoskedasticity and secondly the residuals don't follow the normal distribution as much as we may hope), we need to do non parametric testing ie confidence intervals*
+
+### Bootstrap CI for Correlation and Slope
 ```{r}
 N <- nrow(mort)
 
@@ -108,11 +144,7 @@ abline(v = ci_r, lwd = 3, col = "red")
 abline(v = cor.test(mort$Measles, mort$InfMort)$conf.int, lwd = 3, col = "green", lty = 2)
 legend(-.4, 350, c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
 
-library(car)
-qqPlot(corResults)
-```
-### Boostrap CI for Correlation Slope
-```{r}
+
 #get regression results again
 lm1 <- lm(InfMort ~ Measles, data = mort)
 
@@ -124,34 +156,15 @@ legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red")
 
 #reminder of regression results
 summary(lm1)
-```
-*what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11. BOotstrap CI captures more variability of the correlatin and slopes, perhaps due to the violated assumptions of correlatin in that there is some heteroskedasticity that we saw earlier in the fit vs residuals. Although we did bootstrap the data to find bootstrapped confidence intervals for correlation adn slope, since we are not confident the data itself is linearlly associated, the effectiveness of doing a correlation test is perhaps not very strong *
 
-### Correlation, transformed logit measles immunization, since the value is a percentage that has mostly high numbrs close to 100%
-```{r}
-summary(mort$Measles) # there are no 0s in the data
-
-mort$logitMeasles <- logit(mort$Measles)
-
-summary(mort$logitMeasles)
-
-plot(mort$InfMort, mort$logitMeasles)
-# correlation test
-cor2 <- cor(mort$logitMeasles,mort$InfMort);cor2
-
-# fit linear regression model
-lm2 <- lm(InfMort ~ logitMeasles, data = mort)
-
-#plot 
-plot(mort$InfMort, mort$logitMeasles, main = "Infant Mortality Rate vs logit Measles Immunization Rate", xlab = "logit % of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
-     pch = 19, col = "red")
-mtext(paste("r = ", round(cor2, 2) , ", slope = ", round(lm2$coef[2], 2)))
-abline(lm2$coef, col = "blue", lwd = 3)
-
-
+qqPlot(corResults, main = "Normal Quantile Plot of Bootstrapped Correlation")
+qqPlot(bResults, main = "Normal Quantile Plot of Bootstrapped Slopes")
 ```
 
-*this...does not look good. The correlation is actually slightly worse when taking logit of measles immunization rate. *
+*what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11. BOotstrap CI captures more variability of the correlation and slopes, perhaps due to the violated assumptions of correlatin in that there is some heteroskedasticity that we saw earlier in the fit vs residuals. Although we did bootstrap the data to find bootstrapped confidence intervals for correlation adn slope, since we are not confident the data itself is linearlly associated, the effectiveness of doing a correlation test is perhaps not very strong *
+The right skew in the bootstrapped correlation is the histogram is captured well in the  normal quantile plot. The right tail is a bit longer than the left, causing a deviation from normality. We can see that the bootstrapped correlation confidence intervals captures more variability inherent to the data to due to the right skew. The bootstrapped slopes show a slight left skew which also indicates deviations from normality. In both cases of correlation and slope, there are variabilities in the data not captured by the parametric theoretical tests, which could be a reason why the bootstrapped confidence intervals are wider than the theoretical intervals. The non-parametric bootstrapping in both cases is a better alternative to the theoretical correlation and slope because it casts a wider net to better capture the true characteristics of the data without making assumptions of normality and homeskedasticity.
+
+
 
 
 ### Correlation between % of total Population in rural areas vs GNI per capita 
@@ -166,19 +179,35 @@ ruralGNI <- na.omit(wb %>% select(Rural,GNI,Country))
 hist(ruralGNI$Rural, main = "Histogram of % Population in Rural Area", xlab = "%", col = "orange", breaks = 30) 
 qqPlot(ruralGNI$Rural, main = "Normal Quantile plot of % Population in Rural Area")
 ```
+
+
+
+
+
 *Looking at the histogram of % rural population is not particularly informative by itself, but looking at the normal quantile plot tells us that the data is close to but not exactly normally distributed. On both tails of the distribution, there are deviations from the noraml distribution and its a bit wider than we would like. Since we are looking at percentage, we can try a logit transformation that transforms the data using log(%/(100-%)). *
 
 ```{r}
-ruralGNI$logitRural <- logit(ruralGNI$Rural)
-hist(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area", col = "orange") # actually looks more left skewed when taking sqrt of %rural 
+summary(ruralGNI$Rural)# has zeros, so need to add some amount to every observavtion
+sort(ruralGNI$Rural)
+logit(ruralGNI$Rural + .02)
+#hist(logit(ruralGNI$Rural + .02))
+#hist(logit(ruralGNI$Rural + .2))
+#hist(logit(ruralGNI$Rural + .5))
+
+ruralGNI$logitRural <- logit(ruralGNI$Rural + .2)
+summary(ruralGNI$logitRural)
+
+hist(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area", col = "orange") 
 qqPlot(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area")
 ```
-Performing a logit transformation on the % population in rural areas made the histogram more symetrical, although there is still a slight left skew. The Normal quantile plot looks better, but we can still see there are a few countries that have an unexpectedly low amount of % living in rural areas. Out of curiousity, we can try to identify these outliers with a boxplot. 
-```{r, fig.height=5,fig.width=6}
+Performing a logit transformation on the % population in rural areas made the histogram more symetrical, although there is still a left skew. The Normal quantile plot looks better, but we can still see there are a few countries that have an unexpectedly low amount of % living in rural areas. 
+```{r}
+summary(ruralGNI$logitRural)
+sort(ruralGNI$logitRural) # what are the countries with less than -6 logit rural?
+(urban <- ruralGNI[ruralGNI$logitRural < -6,])
 
-boxplot.with.outlier.label(ruralGNI$logitRural, ruralGNI$Country, col = "pink",main = "Boxplot of logit % Rural", ylab = "logit % Rural", horz = T)
 ```
-Based on the box plot with country labels, the countries with extremely low % percentage of population living in rural areas include Singapore, which is a city state, Nauru which is a beach island in Oceania, and Macao which is another city state. It makes sense that a beachy island and city states with high population density would have very low % of people living in rural areas. These city states would have relatively smaller land with higher population density, while Nauru has an extremely low rural population.
+The countries with extremely low % percentage of population living in rural areas include Singapore, Hong Kong, and Singapore, all of  which are city states. These cities have high urban area with relatively higher population density compared to other countries. Nauru is a beach island in Oceania. Nauru has an extremely low rural population. *should i link wikipedia site where i found the rural population for nauru is 0??*
 
 Next, we can look at the distribution of GNI per capita.
 
@@ -188,25 +217,26 @@ Next, we can look at the distribution of GNI per capita.
 hist(ruralGNI$GNI, main = "Histogram of GNI per capita", col = "green") # extremely right skewed. try log transformation
 qqPlot(ruralGNI$GNI, main = "Histogram of GNI per capita")
 ```
-Since the distribution looks very right skewed, we may try a log transformation, which does look better. The data approximates a normal distribution and is more unfirom and symmetrical, although it shoul dbe noted there are a few more countries with higher GNI than we may expect for a normal distirbution, and these obsevations do stick out in the histogram and normal quantile plot.
+Since the distribution looks very right skewed and GNI is very large numbers in the thousands, we may try a log transformation, which does look better. The data approximates a normal distribution and is more unfirom and symmetrical, although it shoul dbe noted there are a few more countries with higher GNI than we may expect for a normal distirbution, and these obsevations do stick out in the histogram and normal quantile plot.
 
 ```{r}
 # try log transformation
+summary(ruralGNI$GNI) # no zeros present
 ruralGNI$logGNI <- log(ruralGNI$GNI)
 hist(ruralGNI$logGNI, main = "Histogram of log GNI per capita", col = "green") # more symmetrical 
 qqPlot(ruralGNI$logGNI, main = "Histogram of log GNI per capita")
 
 ```
-We can take our transformed variables, log GNI per capita and logit % of population in rural areas and fit them to a linear model and determine their correlation coefficients, slope, and rsquared. Pearson's r has a value of -.7 indicating there is a semi-strong negative correlation between our variables of interest. By performing a t-test with 185 degrees of freedom, we get a p value of 2E-16 which is well below the alpha level .05. Therefore we can reject the null hypothesis that the true correlation is not equal to zero. Additionally, by summarizing our linear model, we can see that logGNI is a significant predictor of logit % of population living in a rural area. In otherwords, for every one unit increase in logGNI, we can expect a .57% decrease in logit % of people living in a rural area. The rsquared reveals that about 49% of the variance of the response variable can be explained by the independent variable. Overall, we can conclude that performing simple linear regression and correlation is a good fit for the data, and logit rural population % and log GNI are negatively correlated. 
+We can take our transformed variables, log GNI per capita and logit % of population in rural areas and fit them to a linear model and determine their correlation coefficients, slope, and rsquared. Pearson's r has a value of -.66 indicating there is a semi-strong negative correlation between our variables of interest. By performing a t-test with 185 degrees of freedom, we get a p value of 2E-16 which is well below the alpha level .05. Therefore we can reject the null hypothesis that the true correlation is not equal to zero. Additionally, with a statistically significant log GNI coefficient of -.68 , we can see that for every one unit increase in log GNI, we can expect a .68 decrease in logit % of people living in a rural area. The rsquared reveals that about 44% of the variance of the response variable can be explained by the independent variable. Overall, we can conclude that performing simple linear regression and correlation is a good fit for the data, and logit rural population % and log GNI are negatively correlated. This is not a surprise, since higher GNI could be thought of as a  proxy for technological development which post industrial revolution, which is typically associated with urbanization. 
 ```{r}
 #fit linear regression model
 lm3 <- lm(logitRural ~ logGNI, data = ruralGNI)
 # is the model significant
 summary(lm3)
 # calculate correlation 
-cor3 <- cor(ruralGNI$logitRural,ruralGNI$logGNI)
+cor3 <- cor(ruralGNI$logGNI,ruralGNI$logitRural)
 # Is the correlation significant?
-cor.test(ruralGNI$logitRural,ruralGNI$logGNI)
+cor.test(ruralGNI$logGNI,ruralGNI$logitRural)
 #plot % rural vs log GNI 
 plot(logitRural ~ logGNI, data = ruralGNI, main = "logit Rural Population (% of Total Population) vs log GNI", xlab = "log GNI per capita", ylab = "logit Rural Population %",
      pch = 19, col = "violet")
@@ -214,13 +244,21 @@ mtext(paste("r = ", round(cor3, 2) , ", rsquared = ", round((abs(cor3))**2,2) , 
 abline(lm3$coefficients, col = "blue", lwd = 3)
 
 ```
+The outliers we see with high GNI per capita and low % rural are the same outliers we saw before, plus Qatar. These countries all have higher GNI and lower rural areas. Their influence is something to keep in mind when interpreting the correlation and slope of this linear regression.
+```{r}
+ruralGNI[ruralGNI$logitRural < -4 & ruralGNI$logGNI > 9,]
+ruraledited <- ruralGNI[ruralGNI$logitRural < -4 & ruralGNI$logGNI > 9,]
+```
 
-In addition, we can see if the model residuals are normally and unforimally distirbuted
+
+
+In addition, we can see if the model residuals are normally and uniformally distributed
 ```{r}
 myResPlots2(lm3)
 
 ```
-*According to the residual plots, the residuals look normal and don't show signs we should be worried about heteroskedasticity. The scatterplot shows a strong negative relationship with a (r = 0.71, slope = -11.67). The relationship between log GNI per capita and % of population living in rural area seems pretty linear, so measuring correlation and using a linear model for these variables seems like a good choice.*
+*approximates normality, some outliers but all in all looks like good application for linear regression adn that gni per capita prdicts % populaiton in rural area pretty well*
+
 
 ### Multiple Regression
 #### look at response variable Military Expenditures
@@ -246,7 +284,7 @@ boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of 
 ```
 *Now the data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers spending more and less than what we might expect from a normal distribution. We can see the countries that these outliers belong to below.*
 
-```{r}
+```{r, fig.height=6}
 boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure")
 ```
 
