@@ -45,7 +45,7 @@ wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
 *discuss assumptinos of correlation and linear regressin, which i believe is a GLM so need to talk ab..out that too* 
 Linear regression is a type of generalized linear model used to .. the assumptions of GLM is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, for simple linear regression, the variables must be linearly related.
 *Introduction to quesiton we are investigation. try logit to measles immunization, may need to subtract when taking logit, correlated to infant mortality?*
-First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. Importantly, the residuals have deviations form normality in the center and tails and we see evidence of heteroskedasticity and potenital outleirs in the fit vs studentized residual plot. We will likely need to perform some transformations ot these variables so that they are more symmetrical and uniformly distributed.
+First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
 ```{r}
 # remove NAs 
 mort <- na.omit(wb %>% select(Measles,InfMort))
@@ -65,11 +65,16 @@ plot(InfMort ~ Measles, data = mort, main = "Infant Mortality Rate vs Measles Im
 mtext(paste("r = ", round(cor1, 2) , ", rsquared = ", round(cor1^2,2),", slope = ", round(lm1$coef[2], 2)))
 abline(lm1$coef, col = "blue", lwd = 3)
 #look at residuals 
-myResPlots2(lm1)
+
 summary(mort$Measles)
 ```
-=
-There is a large left skew in measles vaccination. This makes sense, as the median is 93 and the mean is 87.21. Most of the data is centered on the right.  Since measles vaccination is a percentage, we can perform logit function on the measles explanatory variable. 
+There is a moderate - strong negative relationship between % Measles immunizations and infant mortality, and the rsquared of .31 represents that 31% of the variability in infant mortality rate can be explained by this model. However, since measles immunization is piled towards 100%, this casues probelms of spread and variance. We can look at the residual plots to investiagte this issue further.
+
+```{r}
+myResPlots2(lm1)
+```
+
+There looks to be some hetereoskedasticity in the fit vs studentized residuals, likely due to the extreme right skew of measles vacciination. This makes sense, as the median measles % vaccination is 93 and the mean is 87.21; most of the data is centered on the right.  Since measles vaccination is a percentage, we can perform logit transformation and see if this improves the fit. 
 ```{r}
 mort$logitMeasles <- logit(mort$Measles)
 hist(mort$logitMeasles)
