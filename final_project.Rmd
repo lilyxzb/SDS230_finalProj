@@ -48,7 +48,7 @@ Linear regression is a type of generalized linear model used to .. the assumptio
 First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
 ```{r}
 # remove NAs 
-mort <- na.omit(wb %>% select(Measles,InfMort))
+mort <- na.omit(wb %>% dplyr::select(Measles,InfMort))
 hist(mort$Measles)
 hist(mort$InfMort)
 
@@ -191,10 +191,10 @@ boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of 
 *Now the data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers spending more and less than what we might expect from a normal distribution. We can see the countries that these outliers belong to below.*
 
 ```{r, fig.height=6}
-boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure",ylim = c(-7,-1))
-ylim = c(-7,-1)
+boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure",ylim = c(-7,-1),
+ main = "Boxplot of Logit Military Expenditure")
 ```
-*pointing to same points that are zero*
+In this boxplot, Haiti, Somalia, Panama, ICeland and Costa Rica all have approximately zero % military expenditure, so they are pointing to the same value. Oman and Saudi Arabia have realtively higher % military expenditure than the other countries listed in the world bank 2016 dataset.
 
 *Now that our response variable is transformed, we can begin to look at the relationships with this transformed variable and some potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model*
 ```{r}
@@ -203,8 +203,75 @@ ylim = c(-7,-1)
 
 
 
+## 2-Way ANOVA
+
+### Introduction
+We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. *need to talk about what variables we are using from GWB dataset.* Life expectancy is a variable from the world bank dataset that is slightyl left skewed. However, this should not be a problem if the residuals are normally distirbuted and show homoskedasticity after fitting a model. 
 
 
+First, read in data, do some data cleaning by converting non 1 and 0 to NA, converting 1 to Yes and 0 to No. Then, we can join the GMA dataset by country name with the world bank dataset. The names in the GMA dataset are long, so we assign new names to them. THe indicator variable for pregnant women being penalized for participating in an unlawful abortion becomes "penalpreg" and the indicator variable indicating whether an abortion is legally premitted to take place in a government health facility becomes healthfacility. Additionally, in order to make sure the two way ANOVA is a balanced design, we removed rows with NAs in our columns of interest from the dataframe. In the end, to perform two way ANOVA, we have 143 unique countries with information from the world bank and GMA data set. In order to get a sense of the data, we can use boxplots to look at the distribution of life expectancy for each level of the two categorical variables. The variance between groups doesn't seem hugely different, and there also doesn't seem to be a real difference in life expectancy across the groups. 
+```{r}
+GMA <- read_xlsx("/Users/lilybroach/Desktop/YaleSDS230/final_proj/GMA_data.xlsx")
+str(GMA)
+for (i in 4:ncol(GMA)) {
+  GMA[[i]] <- gsub("[.]",NA,GMA[[i]])
+  GMA[[i]] <- gsub("1","Yes",GMA[[i]])
+  GMA[[i]] <- gsub("0", "No", GMA[[i]])
+}
+
+# join datasets so by by Country and Jurisdiction name 
+wbGMA <- left_join(wb, GMA, join_by(Country == Jurisdictions))
+
+wbGMA$healthfacility <- wbGMA$`glob_placea_Government health facility`
+wbGMA$penalpreg <- wbGMA$`glob_penaltPregnant person`
+
+
+wbGMA2 <- na.omit(wbGMA[,c('penalpreg','healthfacility','LifeExp','Country','Fertility16')])
+head(wbGMA2)
+length(unique(wbGMA2$Country))
+
+hist(wbGMA2$LifeExp, main = "Histogram of Life Expectancy",xlab = "Life Expectancy (years)", col = "purple")
+#hist(log(wbGMA2$LifeExp)) still looks left skewed, almost looks worse
+
+boxplot(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility, xlab = "Penalty for Pregnant Individual : Legal in Healthcare Facility", ylab = "Life Expectancy", col = "blue")
+mtext("Distribution of Life Expectancy by", line = 1)
+mtext("Abortion Legality and Penalization")
+```
+
+Now we want to check interactions between the categorical variables and continuous variable
+
+```{r}
+interaction.plot(wbGMA2$penalpreg, wbGMA2$healthfacility, wbGMA2$LifeExp, type = 'b', lwd = 3, col = c('red','blue','black'), main = "Interaction Plot",)
+
+
+```
+The lines do not move in a parallel fashion, so there might be a significant interaction effect between whether a pregnant woman is penalized for having an abortion and whether an abortion is legally allowed to take place in a government health facility. For instances where the woman is penalized, countries permitting abortions in health facilities  have a slightly higher mean life expectancy. In instances where the pregnant woman is not penalized, countries that do not permit abortions in health facilities look like they have a higher mean life expectancy. The plot itself however is not a statistical test and is merely a suggestion for what we may see when performing the statistical test.
+
+```{r}
+aov1 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
+summary(aov1)
+
+lm1 <- lm(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility - 1)
+summary(lm1)
+
+
+
+```
+there is not a significant difference in life expectancy between groups, but the individual predictors are significant predictors of life expectancy. This could also be due to the fact that there are not very many observations (N = 143). The rsquared value could be too high due to over fitting the model, since again there are not many observations. Since there is a small sample size, the model may suit this data very well but may not be applicable if we were to introduce more new data. 
+
+
+Plotting fit vs studentized residuals shows that the residuals are approximately normally distributed and there isn't a great violation in equal variances. However, there are some non conforming data on the right tail of the distribution. This is likely due to the fact that life expectancy is left skewed, with a maximum of about 84 years. In a normal distribution, we may expect the maximum life expectancy value to be higher to even out the upper right tail. 
+
+```{r}
+summary(wbGMA2$LifeExp)
+myResPlots2(aov1)
+
+```
+
+
+```{r}
+
+```
 
 
 ## conclusion and summary
