@@ -27,7 +27,7 @@ library(readxl)
 # Introduction
 
 ## data explanation
-The data in this project includes 
+*do we want to include everything up here, or introduce before each section?*
 
 ## data cleaning
 
@@ -41,7 +41,7 @@ The data in this project includes
 ```
 
 # Analysis
-
+For the first section of the analysis, we are using variables from the 2016 World Bank dataset, including *t test variables* and infant mortality rate per 1000 live births and the rate of measles immunizations for children ages 12 to 23 months.
 
 ## T Test
 
@@ -49,9 +49,9 @@ The data in this project includes
 
 ## Correlation 
 
-We are performing a simple linear regression  to model a linear relationship between the response variable, infant mortality rate per 1,000 live births, and the predictor variable, measles immunization rat. The assumptions for correlation and linear regression is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, the variables must be linearly related.
 
-First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
+
+We are performing a simple linear regression  to model a linear relationship between the response variable, infant mortality rate per 1,000 live births, and the predictor variable, measles immunization rate. The assumptions for correlation and linear regression is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, the variables must be linearly related. First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
 ```{r}
 # remove NAs 
 mort <- na.omit(wb %>% dplyr::select(Measles,InfMort))
@@ -167,41 +167,43 @@ The histograms above show the bootstrapped data both correlation and slope, the 
 qqPlot(corResults, main = "Normal Quantile Plot of Bootstrapped Correlation")
 qqPlot(bResults, main = "Normal Quantile Plot of Bootstrapped Slopes")
 ```
-As expected, distributions for correlation and slope approximate reflect normality. There is a slight right skew in the normal quantile plot of bootstrapped correlation which is also reflected in the histogram.  The histogram for slope looks very near normal, and the data falls almost entirely along the straight line in the normal quantile plot. 
+As expected, distributions for correlation and slope approximate reflect normality. There is a slight right skew in the normal quantile plot of bootstrapped correlation which is also reflected in the histogram.The histogram for slope looks very near normal, and the data falls almost entirely along the straight line in the normal quantile plot. 
 
 
 ## Multiple regression
 
+*introduction, data explanation, variables, etc*
 
-### Multiple Regression
-#### look at response variable Military Expenditures
+### look at response variable Military Expenditures
 ```{r}
 summary(wb$Military) #note: there are NA and 0 in data
 boxplot(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", horizontal = T, xlab = "% military expenditure")
 hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", xlab = "% military expenditure")
 qqPlot(wb$Military, main = "Military Expenditures (% of GDP)", pch = 19)
 ```
-*The data is heavily right skewed and not normally distributed. These plots all suggest we might want to look at things on the logit because its %. logit function is log(p/(1-p)) or it is log(%/(100-%))*
+*The data is heavily right skewed and not normally distributed. These plots all suggest we might want to look at things on the logit because logit can usually help when dealing with probabilities or percentages. The logit function can be defined as log(p/(1-p)) or log(%/(100-%)). Since there are zeros in the data, we must additionally add a small amount to every single value to avoid a function approaching negative infinity. 
 
 ```{r}
 
-
+#sort(wb$military)
+#wb$logitMilitary <- logit(wb$Military + .002)
+#wb$logitMilitary <- logit(wb$Military + .02)
 wb$logitMilitary <- logit(wb$Military + .2) # since there are zeros in the data
-sort(wb$logitMilitary)
-summary(wb$logitMilitary)
-hist(wb$logitMilitary)
+
+hist(wb$logitMilitary, col = "pink", main = "Histogram of logit Military Expenditures % of GFP")
 qqPlot(wb$logitMilitary, pch = 19)
-boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of GDP", ylab = "logit military expenditure")
+
 
 
 ```
-*Now the data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers spending more and less than what we might expect from a normal distribution. We can see the countries that these outliers belong to below.*
+Now the data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers spending more and less than what we might expect from a normal distribution. We can see the countries that these outliers belong to below.
 
 ```{r, fig.height=6}
 boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure",ylim = c(-7,-1),
  main = "Boxplot of Logit Military Expenditure")
 ```
-In this boxplot, Haiti, Somalia, Panama, ICeland and Costa Rica all have approximately zero % military expenditure, so they are pointing to the same value. Oman and Saudi Arabia have realtively higher % military expenditure than the other countries listed in the world bank 2016 dataset.
+
+In this box plot, Haiti, Somalia, Panama, Iceland and Costa Rica all have approximately zero % military expenditure, so they are pointing to the same value. Oman and Saudi Arabia have relatively higher % military expenditure than the other countries listed in the world bank 2016 data set.
 
 *Now that our response variable is transformed, we can begin to look at the relationships with this transformed variable and some potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model*
 ```{r}
@@ -213,10 +215,8 @@ In this boxplot, Haiti, Somalia, Panama, ICeland and Costa Rica all have approxi
 ## 2-Way ANOVA
 
 ### Introduction
-We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. *need to talk about what variables we are using from GWB dataset.* Life expectancy is a variable from the world bank dataset that is slightly left skewed. However, this should not be a problem if the residuals are normally distirbuted and show homoskedasticity after fitting a model. 
+We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. In particular, we want to understand if whether or not an abortion is allowed to take place in a government health facility specializing in abortions and if the individual seeking an abortion can be penalized effects life expectancy. These terms are called 'healthfacility' and 'penalpreg.' Life expectancy is a variable from the world bank dataset that is slightly left skewed. However, this should not be a problem if the residuals are normally distirbuted and show homoskedasticity after fitting a model. First, we read in data, do some data cleaning by converting non 1 and 0 to NA, converting 1 to Yes and 0 to No. Then, we can join the GMA dataset by country name with the world bank dataset. The names in the GMA dataset are long, so we assign new names to them. The indicator variable for pregnant women being penalized for participating in an unlawful abortion becomes "penalpreg" and the indicator variable indicating whether an abortion is legally premitted to take place in a government health facility becomes healthfacility. Additionally, we removed rows with NAs in our columns of interest from the dataframe. In the end, to perform two way ANOVA, we have 143 unique countries with information from the world bank and GMA data set. In order to get a sense of the data, we can use boxplots to look at the distribution of life expectancy for each level of the two categorical variables. The variance between groups doesn't seem hugely different, and there also doesn't seem to be a real difference in life expectancy across the groups. 
 
-
-First, read in data, do some data cleaning by converting non 1 and 0 to NA, converting 1 to Yes and 0 to No. Then, we can join the GMA dataset by country name with the world bank dataset. The names in the GMA dataset are long, so we assign new names to them. THe indicator variable for pregnant women being penalized for participating in an unlawful abortion becomes "penalpreg" and the indicator variable indicating whether an abortion is legally premitted to take place in a government health facility becomes healthfacility. Additionally, we removed rows with NAs in our columns of interest from the dataframe. In the end, to perform two way ANOVA, we have 143 unique countries with information from the world bank and GMA data set. In order to get a sense of the data, we can use boxplots to look at the distribution of life expectancy for each level of the two categorical variables. The variance between groups doesn't seem hugely different, and there also doesn't seem to be a real difference in life expectancy across the groups. 
 ```{r}
 GMA <- read_xlsx("/Users/lilybroach/Desktop/YaleSDS230/final_proj/GMA_data.xlsx")
 str(GMA)
@@ -245,7 +245,7 @@ hist(wbGMA2$LifeExp, main = "Histogram of Life Expectancy",xlab = "Life Expectan
 
 boxplot(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility, xlab = "Penalty for Pregnant Individual : Legal in Healthcare Facility", ylab = "Life Expectancy", col = "blue")
 mtext("Distribution of Life Expectancy by", line = 1)
-mtext("Abortion Legality and Penalization")
+mtext("Abortion Legality in Health Facility and Penalization")
 ```
 
 Now we want to check interactions between the categorical variables and continuous variable. It is also important to note that we have a small sample size and an unbalanced design as seen in the table below, the number of observations in each group is not the same.
