@@ -1,6 +1,9 @@
 ---
 title: "Final_project_sds230"
-output: word_document
+output: 
+  word_document: 
+    fig_height: 6
+    fig_width: 9
 date: "2024-07-25"
 ---
 
@@ -49,8 +52,8 @@ We will introduce each subsection by describing the variables we are using in th
 
 
 ## Correlation 
+We are performing a simple linear regression to model the relationship between infant mortality rate (per 1,000 live births) and measles immunization rate for infants 12 - 23 months old. The assumptions are random, normally distributed errors centered at zero with constant variance (homoskedasticity) and linearity between variables. Histograms show that Measles vaccination rates are heavily left-skewed, and infant mortality is heavily right-skewed.
 
-We are performing a simple linear regression  to model a linear relationship between the response variable, infant mortality rate per 1,000 live births, and the predictor variable, measles immunization rate. The assumptions for correlation and linear regression is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, the variables must be linearly related. First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
 ```{r}
 # remove NAs 
 mort <- na.omit(wb %>% dplyr::select(Measles,InfMort))
@@ -63,6 +66,8 @@ lm1 <- lm(InfMort ~ Measles, data = mort)
 # correlation test
 cor1 <- cor(mort$Measles,mort$InfMort)
 ```
+ We fit an initial linear model to these variables and calculate the correlation and R-squared value.
+
 ```{r}
 
 #plot 
@@ -74,7 +79,8 @@ abline(lm1$coef, col = "blue", lwd = 3)
 
 summary(mort$Measles)
 ```
-There is a moderate - strong negative relationship between % Measles immunizations and infant mortality, and the rsquared of .31 represents that 31% of the variability in infant mortality rate can be explained by this model. However, since measles immunization is piled towards 100%, this casues probelms of spread and variance. We can look at the residual plots to investiagte this issue further.
+
+There is a moderate to strong negative relationship between % Measles vaccinations and infant mortality. An R-squared of 0.31 means 31% of the variability in infant mortality rate is explained by the model. However, since measles immunization rates cluster near 100%, this causes issues with spread and variance. Residual plots can help investigate this further.
 
 ```{r}
 myResPlots2(lm1)
@@ -87,7 +93,6 @@ hist(mort$logitMeasles, col = "violet", main = "histogram of logit % Measles Imm
 summary(mort$logitMeasles)
 ```
 After taking logit of % Measles vaccination, we can see in the histogram is is more evenly distributed. There is still a left skew, but this is to be expected since countries still have high measles vaccination rates. With our transformed predictor, we make another scatterplot and fit a new regression model.
-
 
 ```{r}
 # fit linear regression model
@@ -109,11 +114,10 @@ myResPlots2(lm2)
 
 
 ```
-In the new scatterplot with logit measles, the data is more dispersed along the x axis. The spread and linear assumptions of correlation and linear models are better met with the transformed variable. The measles histogram is less skewed, the residual plot has less unequal variance, and the overall model fit is better with the transformed predictor variable.  With an rsquared value of .28, 28% of the variability in infant mortality can be explained by this model. While this is lower than the squared value of the previous model (rsquared = .31), the current model with logit measles vaccination is a better fit since the underlying assumptions are better met. The rsquared value is only one way of interpreting good model fit, and we don't always necessarily want the model with the highest rsquared.
-
+In the new scatterplot with logit measles, the data is more dispersed along the x axis. The spread and linear assumptions of correlation and linear models are better met with the transformed variable. The measles histogram is less skewed, the residual plot has less unequal variance, and the overall model fit is better with the transformed predictor variable.  Since R-squared is .28, 28% of the variability in infant mortality can be explained by this model. While this is lower than the squared value of the previous model (R-squared = .31), the current model with logit measles vaccination is a better fit since the underlying assumptions are better met. The best model fit isn't necessarily the model with the highest R-squared.
 
 ### Bootstrap CI for Correlation
-In order to check the correlation and slope we calculated theoretically using parametric tests, we employ non parametric bootstrapping in order to calculate confidence intervals for the true correlation and slope of the relationship between logit Measles immunization rate and infant mortality rate.
+In order to check the slope we calculated using parametric tests, we employ non parametric bootstrapping in order to calculate confidence intervals for the slope between logit Measles immunization rate and infant mortality rate.
 
 ```{r}
 mort2 <- mort %>% dplyr::select(logitMeasles,InfMort)
@@ -148,16 +152,14 @@ abline(v = ci_slope, lwd = 3, col = "red")
 abline(v = confint(lm2,'logitMeasles'), lwd = 3, col = "green", lty = 2)
 legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
 
-
-
 ```
+
 The histograms above show the bootstrapped slopes. The bootstrapped confidence intervals are only a bit wider than the theoretical. This could mean that the linear model we fit approximated the assumptions of normality, homoskedasticity, and independence of errors. The bootstrapping is non parametric therefore capturing more of the true variability in the data.  We can look at normal quantile plots of the bootstrapped data to further visualize the bootstrapped distribution.
 
 ```{r}
 qqPlot(bResults, main = "Normal Quantile Plot of Bootstrapped Slopes")
 ```
 As expected, distributions for slope approximate normality. There is a slight right skew in the normal quantile plot of bootstrapped correlation which is also reflected in the histogram.The histogram for slope looks very near normal, and the data falls almost entirely along the straight line in the normal quantile plot. 
-
 
 ## Multiple regression
 
@@ -170,10 +172,10 @@ boxplot(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", hor
 hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", xlab = "% military expenditure")
 qqPlot(wb$Military, main = "Military Expenditures (% of GDP)", pch = 19)
 ```
-*The data is heavily right skewed and not normally distributed. These plots all suggest we might want to look at things on the logit because logit can usually help when dealing with probabilities or percentages. Since there are zeros in the data, we must additionally add a small amount to every single value to avoid a function approaching negative infinity. 
+
+The data is heavily right-skewed and not normally distributed. These plots suggest using a logit transformation, which helps with probabilities or percentages. Due to zeros in the data, we add a small amount to each value to avoid issues with the logit function.
 
 ```{r}
-
 #sort(wb$military)
 #wb$logitMilitary <- logit(wb$Military + .002)
 #wb$logitMilitary <- logit(wb$Military + .02)
@@ -182,17 +184,16 @@ wb$logitMilitary <- logit(wb$Military + .2) # since there are zeros in the data
 hist(wb$logitMilitary, col = "pink", main = "Histogram of logit Military Expenditures % of GFP")
 qqPlot(wb$logitMilitary, pch = 19)
 
-
-
 ```
-Now the data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers spending more and less than what we might expect from a normal distribution. We can see the countries that these outliers belong to below.
+
+Now the data is more normally distributed. There are a  few potential outliers, spending more or less than expected on military. The box plot below shows these countries.
 
 ```{r, fig.height=6}
 boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure",ylim = c(-7,-1),
  main = "Boxplot of Logit Military Expenditure")
 ```
 
-In this box plot, Haiti, Somalia, Panama, Iceland and Costa Rica all have approximately zero % military expenditure, so they are pointing to the same value. Oman and Saudi Arabia have relatively higher % military expenditure than the other countries listed in the world bank 2016 data set.
+In this box plot, Haiti, Somalia, Panama, Iceland, and Costa Rica all have approximately 0% military expenditure. Oman and Saudi Arabia have relatively higher military expenditure compared to other countries in the 2016 World Bank dataset.
 
 *Now that our response variable is transformed, we can begin to look at the relationships with this transformed variable and some potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model*
 ```{r}
@@ -204,7 +205,7 @@ In this box plot, Haiti, Somalia, Panama, Iceland and Costa Rica all have approx
 ## 2-Way ANOVA
 
 ### Introduction
-We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. More information can be found [here](https://legacy.lawatlas.org/datasets/global-medication-abortion-laws). We want to understand how allowing abortions in government health facilities ('healthfacility') and penalizing individuals seeking abortions ('penalpreg') affects life expectancy. We clean the Global Medication Data (GMA) by converting non 1 and 0 values to NA and recoding 1 as Yes and 0 as No. Then, we join the GMA and World bank dataset by country, and remove rows with NAs. The resulting dataframe has 143 unique countries. We begin the analysis using boxplots to examine the life expectancy distributions for each level of 'healthfacility' and 'penalpreg'. The variance and life expectancy differences across groups are minimal.
+We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. More information can be found [here](https://legacy.lawatlas.org/datasets/global-medication-abortion-laws). We want to understand how allowing abortions in abortion designated health facilities ('healthfacility') and penalizing individuals seeking abortions ('penalpreg') affects life expectancy. We clean the Global Medication Data (GMA) by converting non 1 and 0 values to NA and recoding 1 as Yes and 0 as No. Then, we join the GMA and World bank dataset by country, and remove rows with NAs. The resulting dataframe has 143 unique countries. We begin the analysis using boxplots to examine the life expectancy distributions for each level of 'healthfacility' and 'penalpreg'. The variance and life expectancy differences across groups are minimal.
 
 ```{r}
 GMA <- read_xlsx("/Users/lilybroach/Desktop/YaleSDS230/final_proj/GMA_data.xlsx")
@@ -241,17 +242,16 @@ mtext("Between Penalty for Pregnant Individual & Legal in Healthcare Facility")
 table(wbGMA2$penalpreg,wbGMA2$healthfacility)
 
 ```
-The lines do not move in a parallel fashion, so there *may* be a significant interaction effect between whether a pregnant woman is penalized for having an abortion and whether an abortion is legally allowed to take place in a government health facility. For instances where the woman is penalized, countries permitting abortions in health facilities  have a slightly higher mean life expectancy. In instances where the pregnant woman is not penalized, countries that do not permit abortions in health facilities look like they have a higher mean life expectancy. The plot itself however is not a statistical test and is merely a suggestion for what we may see when performing the statistical test.
 
+The lines are not parallel, suggesting a potential interaction effect between penalizing a pregnant woman for abortion ('penalpreg') and allowing abortions in designated health facilities ('healthfacility'). For penalized women, countries permitting abortions in health facilities have a slightly higher mean life expectancy. Conversely, for non-penalized women, countries not permitting abortions in  health facilities have a higher mean life expectancy. However, this plot is not a statistical test.
 
-We run a two way ANOVA model including the main effects 'penalpreg' and 'healthfacility' and their interaction. However, none of the main effects nor interaction was significant. Therefore we run a second anova model with out the interaction effect. This model shows there is a significant main effect, 'healthfacility.' Whether or not abortions are allowed in a abortion specified government health facility or not has a statistical effect on life expectancy. When we run a linear model without the interaction effect included, the P value of the F statistic is .015, which is lower compared to the linear model with the interaction included (P = .03). This indicates that the model without the interaction may be a better fit. However, adjusted rsquared value could be is .04, meaning about 4% of the variance in life expectancy can be attributed to the model. Since there is a small sample size and only one significant main effect, the model may not explain the data very well. 
+We ran a two-way ANOVA with 'penalpreg,' 'healthfacility,' and their interaction. None were significant. A second ANOVA without the interaction showed a significant main effect of 'healthfacility.' Abortions in government health facilities significantly affect life expectancy. A linear model without the interaction had a P value of 0.015, lower than the model with the interaction (P = 0.03), indicating a better fit. However, the adjusted R-squared is 0.04, explaining only 4% of the variance in life expectancy. The model may not explain the data well due to the small sample size and only one significant effect.
 
 ```{r}
 
 aov1 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
 Anova(aov1, type = 'III')
 #taking out insig interaction
-
 
 #additive model
 aov2 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility)
@@ -266,9 +266,7 @@ summary(lm2)
 
 ```
 
-
-
-Plotting fit vs studentized residuals shows that the residuals are approximately normally distributed and there isn't a great violation in equal variances. However, there are some non conforming data on the right tail of the distribution. This is likely due to the fact that life expectancy is left skewed, with a maximum of about 84 years. In a normal distribution, we may expect the maximum life expectancy value to be higher to even out the upper right tail. 
+Plotting fit vs. studentized residuals shows that the residuals are approximately normally distributed with no major violations of equal variances. However, some non-conforming data in the right tail likely result from life expectancy being left-skewed, with a maximum of about 84 years. In a normal distribution, the maximum value would be higher, balancing the upper right tail.
 
 ```{r}
 summary(wbGMA2$LifeExp)
