@@ -25,9 +25,10 @@ library(readxl)
 
 
 # Introduction
+....
+We will introduce each subsection by describing the variables we are using in that section
 
-## data explanation
-*do we want to include everything up here, or introduce before each section?*
+
 
 ## data cleaning
 
@@ -50,7 +51,7 @@ library(readxl)
 ## Correlation 
 
 We are performing a simple linear regression  to model a linear relationship between the response variable, infant mortality rate per 1,000 live births, and the predictor variable, measles immunization rate. The assumptions for correlation and linear regression is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, the variables must be linearly related. First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
-```{r, eval=F}
+```{r}
 # remove NAs 
 mort <- na.omit(wb %>% dplyr::select(Measles,InfMort))
 hist(mort$Measles, col = "red", main = "Histogram of Measles Immunization Rate",xlab = "Measles Immunization Rate")
@@ -88,7 +89,7 @@ summary(mort$logitMeasles)
 After taking logit of % Measles vaccination, we can see in the histogram is is more evenly distributed. There is still a left skew, but this is to be expected since countries still have high measles vaccination rates. With our transformed predictor, we make another scatterplot and fit a new regression model.
 
 
-```{r, eval=F}
+```{r}
 # fit linear regression model
 lm2 <- lm(InfMort ~ logitMeasles, data = mort)
 
@@ -121,15 +122,16 @@ N <- nrow(mort2)
 #Specify how many boostrap samples to take
 n_samp <- 10000
 
-corResults <- rep(NA, n_samp)
+bResults <- rep(NA, n_samp)
 
 for(i in 1:n_samp){
   #get vector of rows in our fake sample
   s <- sample(1:N, N , replace = T)
   fakeData <-  mort2[s, ]
     
-  #Get bootstrapped correlation and regression slope
-  corResults[i] <- cor(fakeData[, 1], fakeData[, 2])
+  #Get bootstrapped regression slope
+
+  bResults[i] <- lm(fakeData[, 2] ~ fakeData[, 1])$coef[2]
 }
 
 #Get percentiles for 2.5 and 97.5
