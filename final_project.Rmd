@@ -5,7 +5,11 @@ date: "2024-07-25"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, include=FALSE}
+
 library(car)
 library(TeachingDemos)
 library(plyr)
@@ -16,12 +20,14 @@ library(plyr)
 source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # boxplot with outlier function
 source("/Users/lilybroach/Desktop/YaleSDS230/regJDRS.txt")
 wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
-
+library(readxl)
 ```
+
 
 # Introduction
 
 ## data explanation
+The data in this project includes 
 
 ## data cleaning
 
@@ -42,15 +48,15 @@ wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
 
 
 ## Correlation 
-*discuss assumptinos of correlation and linear regressin, which i believe is a GLM so need to talk ab..out that too* 
-Linear regression is a type of generalized linear model used to .. the assumptions of GLM is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, for simple linear regression, the variables must be linearly related.
-*Introduction to quesiton we are investigation. try logit to measles immunization, may need to subtract when taking logit, correlated to infant mortality?*
+
+We are performing a simple linear regression  to model a linear relationship between the response variable, infant mortality rate per 1,000 live births, and the predictor variable, measles immunization rat. The assumptions for correlation and linear regression is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, the variables must be linearly related.
+
 First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. We check the distribution of the variables and see that Measles vaccination rates are heavily left skewed and infant mortality is heavily right skewed. We fit an inital linear model to these variables and calculate correlation and rsquared value.
 ```{r}
 # remove NAs 
 mort <- na.omit(wb %>% dplyr::select(Measles,InfMort))
-hist(mort$Measles)
-hist(mort$InfMort)
+hist(mort$Measles, col = "red", main = "Histogram of Measles Immunization Rate",xlab = "Measles Immunization Rate")
+hist(mort$InfMort, col = "orange", main = "Histogram of Infant Mortality Rate",xlab = "Infant Mortality Rate")
 
 # fit linear regression model
 lm1 <- lm(InfMort ~ Measles, data = mort)
@@ -77,7 +83,7 @@ myResPlots2(lm1)
 There looks to be some hetereoskedasticity in the fit vs studentized residuals, likely due to the extreme right skew of measles vacciination. This makes sense, as the median measles % vaccination is 93 and the mean is 87.21; most of the data is centered on the right.  Since measles vaccination is a percentage, we can perform logit transformation and see if this improves the fit. 
 ```{r}
 mort$logitMeasles <- logit(mort$Measles)
-hist(mort$logitMeasles)
+hist(mort$logitMeasles, col = "violet", main = "histogram of logit % Measles Immunization", xlab = "logit % Measles Immunization")
 summary(mort$logitMeasles)
 ```
 After taking logit of % Measles vaccination, we can see in the histogram is is more evenly distributed. There is still a left skew, but this is to be expected since countries still have high measles vaccination rates. With our transformed predictor, we make another scatterplot and fit a new regression model.
@@ -102,11 +108,12 @@ myResPlots2(lm2)
 
 
 ```
-*In the new scatterplot with logit measles, the data is more dispersed along the x axis. The spread and linear assumptions of correlation and linear models are better met with the transformed variable. The measles histogram is less skewed, the residual plot has less unequal variance, and the overall model fit is better with the transformed predictor variable.  With an rsquared value of .28, 28% of the variability in infant mortality can be explained by this model. While this is lower than the squared value of the previous model (rsquared = .31), the current model with logit measles vaccination is a better fit since the underlying assumptions are better met. The rsquared value is only one way of interpreting good model fit, and we don't always necessarily want the model with the highest rsquared.*
+In the new scatterplot with logit measles, the data is more dispersed along the x axis. The spread and linear assumptions of correlation and linear models are better met with the transformed variable. The measles histogram is less skewed, the residual plot has less unequal variance, and the overall model fit is better with the transformed predictor variable.  With an rsquared value of .28, 28% of the variability in infant mortality can be explained by this model. While this is lower than the squared value of the previous model (rsquared = .31), the current model with logit measles vaccination is a better fit since the underlying assumptions are better met. The rsquared value is only one way of interpreting good model fit, and we don't always necessarily want the model with the highest rsquared.
 
 
-*do bootstrapping as comparison to parametric function*
+
 ### Bootstrap CI for Correlation and Slope
+In order to check the correlation and slope we calculated theoretically using parametric tests, we employ non parametric bootstrapping in order to calculate confidence intervals for the true correlation and slope of the relationship between logit Measles immunization rate and infant mortality rate.
 
 ```{r}
 mort2 <- mort %>% dplyr::select(logitMeasles,InfMort)
@@ -154,7 +161,7 @@ summary(lm1)
 
 
 ```
-The histograms above show the bootstrapped data both correlation and slope, the bootstrapped confidence intervals are a bit wider than the theoretical. In both cases, the bootstrapped confidence intervals are more conservative than the theoretical, which makes sense because the bootstrapping is non parametric therefore capturing more of the true variability in the data. We can look at normal quantile plots of the bootstrapped data to further visualize the distribution.
+The histograms above show the bootstrapped data both correlation and slope, the bootstrapped confidence intervals are a bit wider than the theoretical. In both cases, the bootstrapped confidence intervals are more conservative than the theoretical, which makes sense because the bootstrapping is non parametric therefore capturing more of the true variability in the data. There doesn't appear to be a large difference between the theoretical and bootstrapped confidence intervals. This could mean that the linear model we fit approximated the assumptions of normality, homoskedasticity, and independence of errors. We can look at normal quantile plots of the bootstrapped data to further visualize the bootstrapped distribution.
 
 ```{r}
 qqPlot(corResults, main = "Normal Quantile Plot of Bootstrapped Correlation")
@@ -206,13 +213,14 @@ In this boxplot, Haiti, Somalia, Panama, ICeland and Costa Rica all have approxi
 ## 2-Way ANOVA
 
 ### Introduction
-We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. *need to talk about what variables we are using from GWB dataset.* Life expectancy is a variable from the world bank dataset that is slightyl left skewed. However, this should not be a problem if the residuals are normally distirbuted and show homoskedasticity after fitting a model. 
+We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. *need to talk about what variables we are using from GWB dataset.* Life expectancy is a variable from the world bank dataset that is slightly left skewed. However, this should not be a problem if the residuals are normally distirbuted and show homoskedasticity after fitting a model. 
 
 
-First, read in data, do some data cleaning by converting non 1 and 0 to NA, converting 1 to Yes and 0 to No. Then, we can join the GMA dataset by country name with the world bank dataset. The names in the GMA dataset are long, so we assign new names to them. THe indicator variable for pregnant women being penalized for participating in an unlawful abortion becomes "penalpreg" and the indicator variable indicating whether an abortion is legally premitted to take place in a government health facility becomes healthfacility. Additionally, in order to make sure the two way ANOVA is a balanced design, we removed rows with NAs in our columns of interest from the dataframe. In the end, to perform two way ANOVA, we have 143 unique countries with information from the world bank and GMA data set. In order to get a sense of the data, we can use boxplots to look at the distribution of life expectancy for each level of the two categorical variables. The variance between groups doesn't seem hugely different, and there also doesn't seem to be a real difference in life expectancy across the groups. 
+First, read in data, do some data cleaning by converting non 1 and 0 to NA, converting 1 to Yes and 0 to No. Then, we can join the GMA dataset by country name with the world bank dataset. The names in the GMA dataset are long, so we assign new names to them. THe indicator variable for pregnant women being penalized for participating in an unlawful abortion becomes "penalpreg" and the indicator variable indicating whether an abortion is legally premitted to take place in a government health facility becomes healthfacility. Additionally, we removed rows with NAs in our columns of interest from the dataframe. In the end, to perform two way ANOVA, we have 143 unique countries with information from the world bank and GMA data set. In order to get a sense of the data, we can use boxplots to look at the distribution of life expectancy for each level of the two categorical variables. The variance between groups doesn't seem hugely different, and there also doesn't seem to be a real difference in life expectancy across the groups. 
 ```{r}
 GMA <- read_xlsx("/Users/lilybroach/Desktop/YaleSDS230/final_proj/GMA_data.xlsx")
 str(GMA)
+
 for (i in 4:ncol(GMA)) {
   GMA[[i]] <- gsub("[.]",NA,GMA[[i]])
   GMA[[i]] <- gsub("1","Yes",GMA[[i]])
@@ -222,13 +230,15 @@ for (i in 4:ncol(GMA)) {
 # join datasets so by by Country and Jurisdiction name 
 wbGMA <- left_join(wb, GMA, join_by(Country == Jurisdictions))
 
-wbGMA$healthfacility <- wbGMA$`glob_placea_Government health facility`
+wbGMA$healthfacility <- wbGMA$`glob_placea_Health facility specifically designated to provide abortions`
 wbGMA$penalpreg <- wbGMA$`glob_penaltPregnant person`
 
 
 wbGMA2 <- na.omit(wbGMA[,c('penalpreg','healthfacility','LifeExp','Country','Fertility16')])
 head(wbGMA2)
 length(unique(wbGMA2$Country))
+
+
 
 hist(wbGMA2$LifeExp, main = "Histogram of Life Expectancy",xlab = "Life Expectancy (years)", col = "purple")
 #hist(log(wbGMA2$LifeExp)) still looks left skewed, almost looks worse
@@ -238,26 +248,39 @@ mtext("Distribution of Life Expectancy by", line = 1)
 mtext("Abortion Legality and Penalization")
 ```
 
-Now we want to check interactions between the categorical variables and continuous variable
+Now we want to check interactions between the categorical variables and continuous variable. It is also important to note that we have a small sample size and an unbalanced design as seen in the table below, the number of observations in each group is not the same.
 
 ```{r}
-interaction.plot(wbGMA2$penalpreg, wbGMA2$healthfacility, wbGMA2$LifeExp, type = 'b', lwd = 3, col = c('red','blue','black'), main = "Interaction Plot",)
+interaction.plot(wbGMA2$healthfacility,wbGMA2$penalpreg, wbGMA2$LifeExp, type = 'b', lwd = 3, col = c('red','blue','black'), main = "Interaction Plot",)
 
+table(wbGMA2$penalpreg,wbGMA2$healthfacility)
 
 ```
-The lines do not move in a parallel fashion, so there might be a significant interaction effect between whether a pregnant woman is penalized for having an abortion and whether an abortion is legally allowed to take place in a government health facility. For instances where the woman is penalized, countries permitting abortions in health facilities  have a slightly higher mean life expectancy. In instances where the pregnant woman is not penalized, countries that do not permit abortions in health facilities look like they have a higher mean life expectancy. The plot itself however is not a statistical test and is merely a suggestion for what we may see when performing the statistical test.
+The lines do not move in a parallel fashion, so there *may* be a significant interaction effect between whether a pregnant woman is penalized for having an abortion and whether an abortion is legally allowed to take place in a government health facility. For instances where the woman is penalized, countries permitting abortions in health facilities  have a slightly higher mean life expectancy. In instances where the pregnant woman is not penalized, countries that do not permit abortions in health facilities look like they have a higher mean life expectancy. The plot itself however is not a statistical test and is merely a suggestion for what we may see when performing the statistical test.
+
+
+We run a two way model  including the main effects 'penalpreg' and 'healthfacility' and their interaction. However, none of the main effects nor interaction was significant. Therefore we run a second anova model with out the interaction effect. This model shows there is a significant main effect, 'healthfacility.' Whether or not abortions are allowed in a abortion specified government healht facility or not has a statistical effect on life expectancy. When we run a linear model without the interaction effect included, the P value of the F statistic is .015, which is lower compared to the linear model with the interaction included (P = .03). This indicates that the model without the interaction may be a better fit. However,  adjusted rsquared value could be is .04, meaning about 4% of the variance in life expectancy can be attributed to the model. Since there is a small sample size and only one significant main effect, the model may not explain the data very well.. 
 
 ```{r}
-aov1 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
-summary(aov1)
 
-lm1 <- lm(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility - 1)
+aov1 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
+Anova(aov1, type = 'III')
+#taking out insig interaction
+
+
+#additive model
+aov2 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility)
+Anova(aov2, type = 'III')
+
+lm1 <- lm(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
 summary(lm1)
 
+lm2 <- lm(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility)
+summary(lm2)
 
 
 ```
-there is not a significant difference in life expectancy between groups, but the individual predictors are significant predictors of life expectancy. This could also be due to the fact that there are not very many observations (N = 143). The rsquared value could be too high due to over fitting the model, since again there are not many observations. Since there is a small sample size, the model may suit this data very well but may not be applicable if we were to introduce more new data. 
+
 
 
 Plotting fit vs studentized residuals shows that the residuals are approximately normally distributed and there isn't a great violation in equal variances. However, there are some non conforming data on the right tail of the distribution. This is likely due to the fact that life expectancy is left skewed, with a maximum of about 84 years. In a normal distribution, we may expect the maximum life expectancy value to be higher to even out the upper right tail. 
