@@ -1,0 +1,141 @@
+---
+title: "S&DS 230 Final Project - Claire"
+output:
+  word_document: default
+  html_document: default
+date: "2024-08-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(TeachingDemos)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(TeachingDemos)
+library(plyr)
+library(PerformanceAnalytics)
+library(corrplot)
+#source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # boxplot with outlier function
+#source("/Users/lilybroach/Desktop/YaleSDS230/regJDRS.txt")
+#wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
+
+```
+
+## T Test - Claire
+
+*We are investigating whether the global average life expectancy in 2016 significantly differs from 75 years using a one sample t-test. The dataset consists of the variables "Country" (the country name) and "LifeExp" (life expectancy in years) from the 2016 World Bank data.*
+
+```{r, echo = FALSE}
+# Read data into object called 'wbtest'
+wbtest <- read.csv("/Users/clairesmall/Desktop/S&DS 230/Final Project/WB.2016.csv")
+
+# Create new object with three variables below
+wbLife <- wbtest[, c("Country", "LifeExp")]
+
+# See variable names and structure
+names(wbLife)
+str(wbLife)
+
+# Remove rows with missing data
+wbLife <- na.omit(wbLife)
+
+# Get summaries of data
+summary(wbLife)
+
+# One sample t-test
+t.test(wbLife$LifeExp, mu = 75)
+```
+
+## Analysis - Claire
+
+*The results from our one-sample t-test indicate a statistically significant difference from the hypothesized mean of 75 years for the global average life expectancy in 2016. The negative t-value shows that the sample mean is below the hypothesized mean. With an extremely low p-value, far below the alpha level of 0.05, we have strong evidence to reject the null hypothesis that the mean life expectancy is 75 years. This finding confirms that the mean life expectancy in 2016 is significantly lower than 75 years.*
+
+
+## Permutation Test - Claire
+
+*For our permutation test, we want to see if air pollution significantly impacts life expectancy across different countries. Using the World Bank 2016 data variables "PM2.5" (mean annual exposure to air pollution) and "LifeExp", our hypothesis is that higher levels of air pollution are associated with lower life expectancy.*
+
+```{r, echo = FALSE}
+# Read data into object called 'wbtest'
+wbtest2 <- read.csv("/Users/clairesmall/Desktop/S&DS 230/Final Project/WB.2016.csv")
+
+# Create new object with three variables below
+wbLife2 <- wbtest[, c("Country", "PM2.5", "LifeExp")]
+
+# See variable names and structure
+names(wbLife2)
+str(wbLife2)
+
+# Remove rows with missing data
+wbLife2 <- na.omit(wbLife2[, c("PM2.5", "LifeExp")])
+
+# Get structure
+str(wbLife2)
+
+# Get summaries of data
+summary(wbLife2)
+
+# Plot data and correlation
+plot(wbLife2$PM2.5, wbLife2$LifeExp, pch = 19, col = "seagreen", main = "", xlab = "Air Pollution (PM2.5)", ylab = "Life Expectancy (yrs)")
+
+mtext("Relationship Between Air Pollution & Life Expectancy", cex = 1.2, line = 1)
+mtext(paste("Correlation =", round(cor(wbLife2$PM2.5, wbLife2$LifeExp), 2)), line = 0, cex = 1)
+
+# Test whether the true correlation is actually zero (look at p-value!)
+cor.test(wbLife2$PM2.5, wbLife2$LifeExp)
+```
+
+*The correlation is significant at alpha = .05 and .01, so there is evidence that there is statistically significant non-zero correlation between air pollution and life expectancy. So, let's see what happens when we use fake data.*
+
+```{r, echo = FALSE}
+# Create FAKE data
+fakeLifeExp <- sample(wbLife2$LifeExp)
+# Original data - ordered as it happens by Life Exp
+cbind(wbLife2$PM2.5, wbLife2$LifeExp)
+# Fake Data (second column permuted)
+cbind(wbLife2$PM2.5, fakeLifeExp)
+
+# Plot with FAKE data
+plot(wbLife2$PM2.5, fakeLifeExp, pch = 19, col = "seagreen", main = "")
+
+mtext("Fake Relationship Between Air Pollution & Life Expectancy", cex = 1.2, line = 1)
+mtext(paste("Correlation =", round(cor(wbLife2$PM2.5, fakeLifeExp), 2)), line = 0, cex = 1)
+```
+
+*Now let's create a LOT of fake data and run the permutation test. We're going to get 10,000 fake correlations created on the assumption that there is no relationship between air pollution and life expectancy. Then, we'll see how often we see a correlation close to our actual value just by chance.*
+
+```{r, echo = FALSE}
+# Option for R to not use scientific notation
+options(scipen = 999)
+
+#Specify how many permutation samples to take
+n_samp <- 10000
+
+corResults <- rep(NA, n_samp)
+
+for(i in 1:n_samp){
+  #get vector of rows in our fake sample - remember that when we use sample with the default replace = F, this results in a random reordering of the data - it's a PERMUTATION!
+  corResults[i] <- cor(wbLife2$PM2.5, sample(wbLife2$LifeExp))
+}
+
+# Make histogram of permuted fake correlations and compare to our actual correlation
+# Two-sided p-value for correlation
+(truecor <- mean(abs(corResults) >= abs(cor(wbLife2$PM2.5, wbLife2$LifeExp))))
+
+#Make histogram of permuted CORRELATIONS
+hist(corResults, col = "plum2", main = "", xlab = "Permuted Correlations", breaks = 50, xlim = c(-0.5, 0.5))
+
+summary(corResults)
+
+mtext("Permuted Sample Correlations", cex = 1.2, line = 1)
+mtext(paste0("Permuted P-value = ", round(truecor, 10),", Calculated P-value = ", round(cor.test(wbLife2$PM2.5, wbLife2$LifeExp)$p.value, 10)), cex = 0.8, line = 0)
+
+abline(v = cor(wbLife2$PM2.5, wbLife2$LifeExp), col = "blue", lwd = 3)
+text(cor(wbLife2$PM2.5, wbLife2$LifeExp)-.02, 200, paste("Actual Correlation =", round(cor(wbLife2$PM2.5, wbLife2$LifeExp), 2)), srt = 90)
+```
+## Analysis - Claire
+
+*The results from our permutation test reveal that the distribution of permuted correlations is normal and centered around zero. Since the actual observed correlation falls outside this distribution, this suggests that it is significantly different from what would be expected by random chance. This finding is further supported by a very low p-value, providing strong evidence that the observed correlation is statistically significant and suggesting a real association between air pollution and life expectancy.*
+
