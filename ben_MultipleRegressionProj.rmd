@@ -1,0 +1,488 @@
+---
+title: "Final_project_sds230"
+output: word_document
+date: "2024-07-25"
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(TeachingDemos)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(TeachingDemos)
+library(plyr)
+source("/Users/benjaminphifer/Desktop/regJDRS.txt")
+source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxplot.with.outlier.label.r") # boxplot with outlier function
+wb <- read.csv("/Users/benjaminphifer/Desktop/WB.2016.csv")
+
+```
+
+# Introduction
+
+## data explanation
+
+## data cleaning
+
+
+## descriptive plots, summary information
+
+
+
+```{r}
+
+```
+
+# Analysis
+
+
+## T Test
+*We are invigating whether there is a significant difference in mean  forest area in 1994 and 2014 using paired t test, asking the question is the overall change positive or negative*
+```{r}
+summary(wb$Forest94)
+summary(wb$Forest14)
+wb$diffForest <- wb$Forest94 - wb$Forest14
+t.test(wb$diffForest)
+```
+
+
+## Correlation 
+*discuss assumptinos of correlation and linear regressin, which i believe is a GLM so need to talk ab..out that too* 
+Linear regression is a type of generalized linear model used to .. the assumptions of GLM is that we have random, normally distributed errors centered at zero with constant variance. There should be homoskedasticity, with constant variance across groups. In addition, for simple linear regression, the variables must be linearly related.
+*Introduction to question we are investigation. try logit to measles immunization, may need to subtract when taking logit, correlated to infant mortality?*
+First, we want to investigate whether there is a relationship between infant mortality and measles vaccination rates. A quick look at the Pearson's correlation coefficeint, r,  between these two variables shows a medium negative association between the two variables. Fitting a linear model gives us the slope and we can plot this linear regression on the data.
+```{r, echo=FALSE}
+
+# remove NAs 
+mort <- na.omit(wb %>% select(Measles,InfMort))
+
+# correlation test
+cor1 <- cor(mort$Measles,mort$InfMort)
+
+# fit linear regression model
+lm1 <- lm(InfMort ~ Measles, data = mort)
+
+#plot 
+plot(mort, main = "Infant Mortality Rate vs Measles Immunization Rate", xlab = "% of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
+     pch = 19, col = "red")
+mtext(paste("r = ", round(cor1, 2) , ", slope = ", round(lm1$coef[2], 2)))
+abline(lm1$coef, col = "blue", lwd = 3)
+```
+In the plot above, we see that while there does seem to be some sort of relationship, perhap a line is not the best option. We can further investigate by looking at the plot of fit vs studentized residuals and a normal quantile plot of the residuals.
+
+```{r}
+myResPlots2(lm1)
+
+```
+Sure enough, in the residual plot, we see heteroskedasticity and some outliers. The residuals approximate normality but there is some variability in the lower quartiles that we don't like to see for a normal distribution.
+
+*discuss the plot (heteroskedasticity, violation of linear regression assumption that variance all have constant variance, semi normal residuals, not. great but not terrible...). Correlation does not seem to be the best model, as the two variables look related but we are not confident it is a linear association. Perhaps  Bootstrapping this data to get confidence intervals for the correlation AND for the regression slope will help account for the data's variability. Perhaps this will help heteroskedasticity?*
+### Bootstrap CI for Correlation 
+```{r}
+N <- nrow(mort)
+
+#Specify how many boostrap samples to take
+n_samp <- 10000
+
+corResults <- rep(NA, n_samp)
+bResults <- rep(NA, n_samp) 
+
+for(i in 1:n_samp){
+  #get vector of rows in our fake sample
+  s <- sample(1:N, N , replace = T)
+  fakeData <-  mort[s, ]
+    
+  #Get bootstrapped correlation and regression slope
+  corResults[i] <- cor(fakeData[, 1], fakeData[, 2])
+  bResults[i] <- lm(fakeData[, 2] ~ fakeData[, 1])$coef[2]
+
+}
+
+#Get percentiles for 2.5 and 97.5
+ci_r <- quantile(corResults, c(.025, .975))
+ci_slope <- quantile(bResults, c(.025, .975))
+
+#Histogram of bootstrapped correlation values with CI's (both bootstrapped and theoretical)
+hist(corResults, col = "blue", main = "Bootstrapped Correlations", xlab = "Sample Correlation", breaks = 50)
+abline(v = ci_r, lwd = 3, col = "red")
+abline(v = cor.test(mort$Measles, mort$InfMort)$conf.int, lwd = 3, col = "green", lty = 2)
+legend(-.4, 350, c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
+
+library(car)
+qqPlot(corResults)
+```
+### Boostrap CI for Correlation Slope
+```{r}
+#get regression results again
+lm1 <- lm(InfMort ~ Measles, data = mort)
+
+#Histogram of bootstrapped regression slopes with CI's (both bootstrapped and theoretical)
+hist(bResults, col = "blue", main = "Bootstrapped Slopes", xlab = "Sample Slope", breaks = 50)
+abline(v = ci_slope, lwd = 3, col = "red")
+abline(v = confint(lm1,'Measles'), lwd = 3, col = "green", lty = 2)
+legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
+
+#reminder of regression results
+summary(lm1)
+```
+*what do the bootstrapped CI for corrrelation and slope suggest? go to mod 11. BOotstrap CI captures more variability of the correlatin and slopes, perhaps due to the violated assumptions of correlatin in that there is some heteroskedasticity that we saw earlier in the fit vs residuals. Although we did bootstrap the data to find bootstrapped confidence intervals for correlation adn slope, since we are not confident the data itself is linearlly associated, the effectiveness of doing a correlation test is perhaps not very strong *
+
+### Correlation, transformed logit measles immunization, since the value is a percentage that has mostly high numbrs close to 100%
+```{r}
+summary(mort$Measles) # there are no 0s in the data
+
+mort$logitMeasles <- logit(mort$Measles)
+
+summary(mort$logitMeasles)
+
+plot(mort$InfMort, mort$logitMeasles)
+# correlation test
+cor2 <- cor(mort$logitMeasles,mort$InfMort);cor2
+
+# fit linear regression model
+lm2 <- lm(InfMort ~ logitMeasles, data = mort)
+
+#plot 
+plot(mort$InfMort, mort$logitMeasles, main = "Infant Mortality Rate vs logit Measles Immunization Rate", xlab = "logit % of Measles Immunization for 12-23 month olds", ylab = "Infant Mortality Rate per 1,000 Live Births",
+     pch = 19, col = "red")
+mtext(paste("r = ", round(cor2, 2) , ", slope = ", round(lm2$coef[2], 2)))
+abline(lm2$coef, col = "blue", lwd = 3)
+
+
+```
+
+*this...does not look good. The correlation is actually slightly worse when taking logit of measles immunization rate. *
+
+
+### Correlation between % of total Population in rural areas vs GNI per capita 
+Another set of variables that may be linearly related are the % of the population in rural areas and GNI. First, we take a look at the distribution of the variables to see if the assumptions of correlation and linear regression are met.
+```{r}
+summary(wb$Rural) #has 0s and NA
+summary(wb$GNI) # has NA
+ruralGNI <- na.omit(wb %>% select(Rural,GNI,Country))
+
+
+#take a look at % rural area variable
+hist(ruralGNI$Rural, main = "Histogram of % Population in Rural Area", xlab = "%", col = "orange", breaks = 30) 
+qqPlot(ruralGNI$Rural, main = "Normal Quantile plot of % Population in Rural Area")
+```
+*Looking at the histogram of % rural population is not particularly informative by itself, but looking at the normal quantile plot tells us that the data is close to but not exactly normally distributed. On both tails of the distribution, there are deviations from the noraml distribution and its a bit wider than we would like. Since we are looking at percentage, we can try a logit transformation that transforms the data using log(%/(100-%)). *
+
+```{r}
+ruralGNI$logitRural <- logit(ruralGNI$Rural)
+hist(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area", col = "orange") # actually looks more left skewed when taking sqrt of %rural 
+qqPlot(ruralGNI$logitRural, main = "Histogram of logit % Population in Rural Area")
+```
+Performing a logit transformation on the % population in rural areas made the histogram more symetrical, although there is still a slight left skew. The Normal quantile plot looks better, but we can still see there are a few countries that have an unexpectedly low amount of % living in rural areas. Out of curiousity, we can try to identify these outliers with a boxplot. 
+```{r, fig.height=5,fig.width=6}
+
+boxplot.with.outlier.label(ruralGNI$logitRural, ruralGNI$Country, col = "pink",main = "Boxplot of logit % Rural", ylab = "logit % Rural", horz = T)
+```
+Based on the box plot with country labels, the countries with extremely low % percentage of population living in rural areas include Singapore, which is a city state, Nauru which is a beach island in Oceania, and Macao which is another city state. It makes sense that a beachy island and city states with high population density would have very low % of people living in rural areas. These city states would have relatively smaller land with higher population density, while Nauru has an extremely low rural population.
+
+Next, we can look at the distribution of GNI per capita.
+
+
+```{r}
+# take a look at GNI
+hist(ruralGNI$GNI, main = "Histogram of GNI per capita", col = "green") # extremely right skewed. try log transformation
+qqPlot(ruralGNI$GNI, main = "Histogram of GNI per capita")
+```
+Since the distribution looks very right skewed, we may try a log transformation, which does look better. The data approximates a normal distribution and is more unfirom and symmetrical, although it shoul dbe noted there are a few more countries with higher GNI than we may expect for a normal distirbution, and these obsevations do stick out in the histogram and normal quantile plot.
+
+```{r}
+# try log transformation
+ruralGNI$logGNI <- log(ruralGNI$GNI)
+hist(ruralGNI$logGNI, main = "Histogram of log GNI per capita", col = "green") # more symmetrical 
+qqPlot(ruralGNI$logGNI, main = "Histogram of log GNI per capita")
+
+```
+We can take our transformed variables, log GNI per capita and logit % of population in rural areas and fit them to a linear model and determine their correlation coefficients, slope, and rsquared. Pearson's r has a value of -.7 indicating there is a semi-strong negative correlation between our variables of interest. By performing a t-test with 185 degrees of freedom, we get a p value of 2E-16 which is well below the alpha level .05. Therefore we can reject the null hypothesis that the true correlation is not equal to zero. Additionally, by summarizing our linear model, we can see that logGNI is a significant predictor of logit % of population living in a rural area. In otherwords, for every one unit increase in logGNI, we can expect a .57% decrease in logit % of people living in a rural area. The rsquared reveals that about 49% of the variance of the response variable can be explained by the independent variable. Overall, we can conclude that performing simple linear regression and correlation is a good fit for the data, and logit rural population % and log GNI are negatively correlated. 
+```{r}
+#fit linear regression model
+lm3 <- lm(logitRural ~ logGNI, data = ruralGNI)
+# is the model significant
+summary(lm3)
+# calculate correlation 
+cor3 <- cor(ruralGNI$logitRural,ruralGNI$logGNI)
+# Is the correlation significant?
+cor.test(ruralGNI$logitRural,ruralGNI$logGNI)
+#plot % rural vs log GNI 
+plot(logitRural ~ logGNI, data = ruralGNI, main = "logit Rural Population (% of Total Population) vs log GNI", xlab = "log GNI per capita", ylab = "logit Rural Population %",
+     pch = 19, col = "violet")
+mtext(paste("r = ", round(cor3, 2) , ", rsquared = ", round((abs(cor3))**2,2) , ", slope = ", round(lm3$coef[2], 2)))
+abline(lm3$coefficients, col = "blue", lwd = 3)
+
+```
+
+In addition, we can see if the model residuals are normally and unforimally distirbuted
+```{r}
+myResPlots2(lm3)
+
+```
+*According to the residual plots, the residuals look normal and don't show signs we should be worried about heteroskedasticity. The scatterplot shows a strong negative relationship with a (r = 0.71, slope = -11.67). The relationship between log GNI per capita and % of population living in rural area seems pretty linear, so measuring correlation and using a linear model for these variables seems like a good choice.*
+
+### Multiple Regression
+
+
+We are curious in finding out how a country's military expenditure as a percent of its total spending is impacted based on total annual gun deaths per 100,000, the number of guns owned per 100 people, undetermined gun deaths per 100,000, Unintentional Gun Deaths per 100,000, percent income held by the top 10% of Earners, Mobile Cellular Subscriptions per 100 people, and CO2 emmisions in metric tons (t) per capita. The data we are using comes from the world bank dataset from 2016. We are motivated to find out what variables impact logit of military expenditure as percent of their GDP from the World Bank data set because I assume there is a positive relationship between gun related deaths, military expenditure and carbon emissions and want to discover the true relationship between these variables.
+
+
+```{r}
+
+summary(wb$Military) #note: there are NA and 0 in data
+boxplot(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", horizontal = T, xlab = "% military expenditure")
+
+hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", xlab = "% military expenditure")
+qqPlot(wb$Military, main = "Military Expenditures (% of GDP)", pch = 19)
+```
+
+The data is heavily right skewed and not normally distributed. These plots all suggest we might want to look at things on the logit because logit can usually help when dealing with probabilities or percentages. The logit function can be defined as log(p/(1-p)) or log(%/(100-%)). Since there are zeros in the data, we must additionally add a small amount to every single value to avoid a function approaching negative infinity.
+
+
+```{r}
+wb$logitMilitary <- logit(wb$Military + .2) # since there are zeros in the data
+
+hist(wb$logitMilitary, col = "pink", main = "Histogram of Logit Military Expenditures % of GDP")
+qqPlot(wb$logitMilitary, pch = 19)
+boxplot(wb$logitMilitary, col = "red", main = "Logit Military Expenditures % of GDP", ylab = "Logit Military Expenditure", horizontal = T)
+#add line for USA
+abline(v = wb$logitMilitary[wb$Country == "United States"], col = "blue", lwd = 3, lty = 2)
+
+
+```
+
+Now the military expenditure data seems more reasonably normally distributed and we begin to look at the predictor variables. We notice that there are a few potential outliers which spend more or less than what is expected from a normal distribution. We can see the countries that these outliers belong to below.
+
+```{r, fig.height=6}
+boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure",ylim = c(-7,-1),
+ main = "Boxplot of Logit Military Expenditure")
+#add line for USA
+abline(h = wb$logitMilitary[wb$Country == "United States"], col = "blue", lwd = 3, lty = 2)
+
+wb$logitMilitary
+```
+
+In this box plot, Haiti, Somalia, Panama, Iceland and Costa Rica all have approximately zero % military expenditure, so they are pointing to the same value. Oman and Saudi Arabia have relatively higher % military expenditure than the other countries listed in the world bank 2016 data set. The blue dotted line represents the United States Logit Military Expenditure. It appears that we are in atleast the top 25% of military expenditure worldwide for this year.
+
+Now lets scrape data from websity with firearm-related death rates for countries
+```{r}
+library(rvest)
+library(car)
+library(leaps)
+library(lubridate)
+library(stringr)
+
+install.packages("XML")
+#Define url of interest
+url <- "https://en.wikipedia.org/wiki/List_of_countries_by_firearm-related_death_rate"
+browseURL(url)
+
+webpage <- read_html(url)
+
+macronode <- url %>% read_html() %>% html_nodes(xpath = '//*[@id="mw-content-text"]/div/table[3]') %>% html_table()
+
+countrynameHTML <- html_nodes(webpage, '.sort-under a')
+
+countryname <- html_text(countrynameHTML)
+
+countryname <- gsub("\\*", "", countryname)
+
+countryname <- str_trim(countryname, side = c("right")) # Getting vector of country names
+
+length(countryname)
+#Now obtaining firearm related deaths per 100,000
+GunTotal2HTML <- html_nodes(webpage, 'td:nth-child(8)')
+length(GunTotal2HTML)
+GunTotal2 <- html_text(GunTotal2HTML)
+
+```
+
+
+
+
+Now that our response variable, miltary expenditure, is transformed we begin to look at the relationships with this transformed variable and potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model. Here are the possible predictors we are including: total annual gun deaths per 100,000, the number of guns owned per 100 people, undetermined gun deaths per 100,000, Unintentional Gun Deaths per 100,000,percent income held by the top 10% of Earners, Mobile Cellular Subscriptions per 100 people, and CO2 emmisions in metric tons (t) per capita.
+
+
+```{r}
+library(corrplot)
+# first I create a new object with all variables that were introduced
+# Creating a new variable in wb that has square root of Guns per 100
+wb$sqrtGuns100 <- sqrt(wb$GunsPer100)
+
+wbn1 <- na.omit(wb[, c("logitMilitary", "GunTotal", "GunsPer100","GunUndet","GunUnint","Cell","CO2", "IncomeTop10")])
+
+# Creating a new dataframe from wb that has just variables I want
+wbn2 <- (wb[, c("logitMilitary", "GunTotal", "sqrtGuns100","GunUndet","GunUnint","Cell","CO2", "IncomeTop10")])
+
+sigcorr <- cor.mtest(wbn1, conf.level =.95)
+corrplot.mixed(cor(wbn1),lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .7, tl.pos = "lt", tl.cex = .7, p.mat = sigcorr$p, sig.leve = .05)
+
+```
+Through the correlation matrix, it appears that none of the predictor variable are signifant enough to have a clear relationship with logit of the military expenditure. However, it appears that some of the predictor variables including Guns per 100 people , Unintential Gun Deaths per 100,000, and CO2 emmissions have a somewhat positive correlation with Military Expenditure on the logit scale while Mobile Cell Subscriptions per 100 people, and Percent income held by the Top 10% of Earners have a somewhat negative linear relationship with  Military Expenditure on the logit Scale.
+
+
+Next I create, individual scatterplots between each of the predictor variables and response variable. It appears
+```{r}
+# Total Annual Gun Deaths per 100,000 vs logit of % Military Expenditure
+plot(wb$GunTotal, wb$logitMilitary,xlab = "Total Annual Gun Deaths per 100,000",ylab = "logit of % Military Expenditure", main = "Total Annual Gun Deaths per 100,000 vs logit of % Military Expenditure", cex.main = 0.9, pch = 19, col ="brown")
+
+# Guns Owned Per 100 People vs logit of % Military Expenditure
+plot(wb$GunsPer100, wb$logitMilitary,xlab = "Guns Owned Per 100 People", ylab = "logit of % Military Expenditure", main = "Guns Owned Per 100 People vs logit of % Military Expenditure", cex.main = 0.9, pch =19, col ="orange")
+
+# Undetermined Gun Deaths per 100,000 vs logit of % Military Expenditure
+plot(wb$Cell, wb$logitMilitary, xlab = "Mobile Cellular Subscriptions per 100 people", ylab = "Military Expenditures (% of GDP)", pch = 19, col = "blue", main = "Undetermined Gun Deaths per 100,000 vs logit of % Military Expenditure", cex.main = 0.9)
+
+# Unintentional Gun Deaths per 100,000 vs logit of % Military Expenditure
+plot(wb$GunUnint, wb$logitMilitary, xlab = "Unintentional Gun Deaths per 100,000",ylab = "logit of % Military Expenditure", main = "Unintentional Gun Deaths per 100,000 vs logit of % Military Expenditure", cex.main = 0.9, pch =19, col = "yellow")
+
+#CO2 emissions (t per capita) vs logit of % Military Expenditure
+plot(wb$CO2, wb$logitMilitary, xlab = "CO2 emissions (t per capita)", ylab = "Military Expenditures (% of GDP)", pch = 19, col = "blue", main = "CO2 emissions (t per capita) vs logit of % Military Expenditure", cex.main = 0.9)
+
+# Percent Income Held by the Top 10% of Earners vs logit of % Military Expenditure
+plot(wb$IncomeTop10, wb$logitMilitary, xlab = "Percent Income help by Top 10% of Earners", ylab = "Military Expenditure (% of GDP)", col = "red", pch = 19, main = "Percent Income Held by the Top 10% of Earners vs logit of % Military Expenditure", cex.main = 0.9)
+
+plot(wb$sqrtGuns100,wb$logitMilitary,xlab = "Square Root of Guns Owned Per 100 people",ylab = "logit of % Military Expenditure",main = "sqrt of Guns Owned per 100 people vs logit of % Military Expenditure", cex = 0.9, pch = 19, col ="green")
+
+```
+Through these scatterplots of each predictor variable I observed that if the square root of Guns per 100 people is taken then the spread of data on the scatterplot vs Military Expenditure increases and their relationship can be better interpreted. I will now incorporate square root of Guns per 100 into the model instead of the raw version of the variable.
+
+```{r}
+# Creating a new dataframe from wb that has just variables I want
+wbn2 <- (wb[, c("logitMilitary", "GunTotal", "sqrtGuns100","GunUndet","GunUnint","Cell","CO2", "IncomeTop10")])
+
+```
+
+```{r}
+
+pairsJDRS(wbn2)
+
+```
+
+
+Our relationships between the logit of Military Expenditure and each of the variables included appears to be either linear or in a blob shape. It appears that among our predictor variables, that there are some significant correlations between predictor variables including Total Gun Deaths per 100,000 vs Undetermined Gun Deaths per 100,000 people and Mobile Cellular Subscriptions vs Carbon Emissions in metric tons per capita. This will result in collinearity within our regression model. The most significant relationships between our response variable and predictor variables were the logit of Military Expenditure & CO2 Emssions per Capita and logit of Military Expenditure & Income in the top 10% of individuals. It appears that the correlation between logit of Military Expenditure and Income in the top 10% of individuals was negative and this was significant at a pvalue of 0.05 or less from a t distribution.
+
+
+Now I am going to fit a regression model including all possible predictors for logit of Military Expenditure
+```{r}
+# Original  Regression model with all predictors
+lm1 <- lm(logitMilitary ~ GunTotal + sqrtGuns100 + GunUndet + GunUnint + Cell + CO2 + IncomeTop10, data = wbn2)
+
+summary(lm1)
+
+```
+From the summary of our model, it appears that none of the predictors are statistically significant and although there are 217 observations of logit Military expenditure in our original dataset, the total number of observations deleted among all predictors due to missingness was 204. I decided to perform backwards stepwise regression on the model to see if any of our predictors would become significant.
+
+```{r}
+lm1 <- lm(logitMilitary ~ GunTotal + sqrtGuns100 + GunUndet + GunUnint + Cell + CO2, data = wbn2)
+#After taking out Percent Income Held by Top 10 % of Earners CO2 emissions becomes statistically significant
+summary(lm1)
+
+#Here is our linear model after backwards stepwise regression is performed and all variables become statistically significant
+lm2 <- lm(logitMilitary ~ CO2, data = wbn2) # Only CO2 in this model is statistically significant
+summary(lm2)
+```
+Through backwards regression of the model, one predictor variable was left to predict the logit of Military expenditures which was CO2 emissions. This variable is highly significant at a pvalue on the t distribtution of 0.001**. This model however does not have a very high R squared value which is only 0.04 meaning that only around 4 percent of the variability in Military Expenditure on the logit scale can be explained by CO2 emissions. It appears that there is a positive correlation however and as carbon emission increase, there is expected to be a higher military expenditure in a country.
+
+
+Now instead of using backwards stepwise regression, I will use best subsets regression on all of our original variables to see which model among all possible models could predict logit of military expenditure the best.
+
+```{r}
+
+# Get best subsets results from the world bank data set with predictor variables of interest for response variable Military Expenditure on logit scale
+
+mod1 <- regsubsets(logitMilitary ~ ., data = wbn2, nvmax = 7)
+dim(wbn2)
+
+names(mod1)
+mod1sum <- summary(mod1)
+
+# Now I am looking at which predictor is the best for measuring logit of Military Expenditure in only a model with a single predictor
+mod1sum$which
+
+# It appears that IncomeTop10 is the best predictor in this case
+
+# A new model is created based off of best subsets regression results 
+lmbsr <- lm(logitMilitary ~ IncomeTop10, data = wbn2)
+
+summary(lmbsr)
+```
+
+It appears that after using best subsets regression on logitMilitary expenditure based on the predictor variables chosen (Total Gun Deaths, Square Root of Number of Gun Deaths, Undeterimned Gun Deaths, Unintentional Gun Deaths, Mobile Cellular Subscriptions per 100 people, Carbon emissions in metric tons per capita, and percent income held by the top 10% of Earners ) that of the models with a single predictor, the single best predictor for Military Expenditures was Percent Income Held by the Top 10% of Earners. It turns that that the best model with 3 predictors contains CO2 emissions, Unintentional Gun Deaths and the square root of the number of Guns per 100,000. 
+
+For every additional predictors added, an additional dimensional will also be added to the regression model,and r squared will increase as a result. Since this is the case, I want to find the model that will penalize additional predictor variables and this is done by determining the model according to adjusted r squared.
+
+
+```{r}
+# Best model According to R-Squared
+plot(mod1, main = "Best Model According to R-Squared", scale = "r2")
+
+# Best model according to Adjusted R- Squared
+which.max(mod1sum$adjr2)
+
+# Find which variables are in model 5
+names(wbn2)[mod1sum$which[which.max(mod1sum$adjr2) , ]][-1]
+
+# Fit the model and show results
+wbtemp <- wbn2[,mod1sum$which[which.max(mod1sum$adjr2), ]]
+
+summary(lm(logitMilitary ~ ., data = wbtemp))
+
+plot(mod1, main = "Best Model According to Adjusted R-Squared" , scale = "adjr2")
+```
+According to the model with the highest R-Squared all 7 predictors of Logit Military Expenditure % should be included, however, this is only because R squared increases as the dimensionality increases in our model and thus it is likely not the case that all 7 predictors explain 0.35 of the variability in logit of Military Expenditue as % of a counrty's GDP.
+
+Adjusted R squared penalizes extra predictor variables in our model which weren't accounted for in our model where highest r squared value was taken. In this case, Total Gun Deaths per 100,000, the square root of the number of guns per 100 people, unintentional gun deaths per 100,000 people, mobile cellular subscriptions per 100 people, and carbon emissions in metric tons result in the model with the highest adjusted r squared value. In addition Carbon emissions in metric tons is a singificant statistic although 159 observations of the original 217 have been deleted and the model only has a multiple r squared value of 0.1224. Even with these predictors having a large adjusted r squared value not alot of the variability in Military Expenditure can be explained by the predictors.
+
+Now, I will look at best model according to Bayesian Information Criteria
+
+
+```{r}
+which.min(mod1sum$bic)
+
+names(wbn2)[mod1sum$which[which.min(mod1sum$bic), ]][-1]
+
+# Fit this model and show results
+wbtemp2 <- wbn2[,mod1sum$which[which.min(mod1sum$bic),]]
+summary(lm(logitMilitary~., data = wbtemp2))
+
+```
+According to our Bayesian Information Criterion for our models for logit of military expenditure, the model with the lowest Bayesian Information criterion had 3 predictor variables which were the square root of Guns per 100 people, Unintentional Gun deaths per 100,000 people and carbon emissions per person in metric tons. This models criterion metric was set by measuring the likelihood of the model occuring, the number of parameters in the mdoel and the number of observations. It appears that our r-squared value is 0.10 which is around the rsquared value from our other models including the adjusted r squared model and the significance for Carbon Emissions in this model is still high (at a low pvalue). As carbon emissions increases in the model, we can expect the logit of military expenditure in % GDP of a country to increase.
+
+Next I will look at the best model according to AIC
+
+```{r}
+npred <- length(mod1sum$bic)
+AICvec <- rep(NA,npred)
+for (i in 1:npred){
+  wbtemp3 <- wbn2[,mod1sum$which[i,]]
+  AICvec[i] <- AIC(lm(logitMilitary ~., data = wbtemp3))
+}
+
+AICvec
+
+wbtemp3 <- wbn2[,mod1sum$which[which.min(AICvec), ]]
+summary(lm(logitMilitary ~ .,data = wbtemp3))
+```
+From the results of all of the best subsets regression functions including AIC, BIC , Adjusted R squared and Backwards Stepwise regression, I decided to include the model from the Bayesian Information Criterion since it's most significant predictor variable had the lowest p-value for highest adjusted r squared value (0.05) with the most predictor variables kept in the model (3). This adjusted r squared value is still relatively low but it is the best of all models.
+
+Now I will examine the model residuals based on this BIC model with 3 predictors
+
+```{r}
+
+modfin <- lm(logitMilitary ~ ., data = wbtemp2)
+
+summary(modfin)
+
+myResPlots2(modfin, label = "Logit Military Expenditure as % GDP")
+
+```
+According to our residuals it appears that for the most part our errors for logit of military expenditures are approximately normally distributed with some exceptions on the lower end of the normal quantile plot. We could infer that these countries had very low military expenditure as part of their overall GDP. In addition, there are 2 outliers that have a standard deviation of over 3 although the rest of the studentized residuals appear evenly scattered with no evidence of heteroskedasticity in the model.
+
+Results and Discussion:
+
+After performing various types of best subsets regression including exhaustive search and forward selection, the criterion I decided to use for our model was Bayesian Information Criterion which included the predictor variables the square root of Guns per 100 people, the number of unintentional gun deaths per 100,000 people, and carbon emissions per person in metric tons which were used to predict military expenditure on the log scale. I chose this criterion in particular because when compared to the other criterion including backwards step wise regression, the adjusted r squared value and the exhaustive search method for best subsets regression, it had the largest r squared (0.1071) and adjusted r squared (0.05731) value with the most number of significant variables (although there was only 1). The most significant predictor variable was Carbon. emissions per person in metric tons which was significant at a pvalue of 0.0143. In the model, as carbon emissions per person of a country increases we can expect that the logit of Military expenditure to increase as well by 0.0479. 
+
+
+## conclusion and summary

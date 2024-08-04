@@ -2,8 +2,8 @@
 title: "Final_project_sds230"
 output: 
   word_document: 
-    fig_height: 5
-    fig_width: 9
+    fig_height: 4
+    fig_width: 8
 date: "2024-07-25"
 ---
 
@@ -24,24 +24,18 @@ source("https://raw.githubusercontent.com/talgalili/R-code-snippets/master/boxpl
 source("/Users/lilybroach/Desktop/YaleSDS230/regJDRS.txt")
 wb <- read.csv("/Users/lilybroach/Desktop/YaleSDS230/final_proj/WB.2016.csv")
 library(readxl)
+library(leaps)
+library(corrplot)
 ```
 
 
 # Introduction
-....
-We will introduce each subsection by describing the variables we are using in that section
-
-
-
-## data cleaning
-
-
-## descriptive plots, summary information
+In our final project, we aim to uncover insights into pressing real-world issues by analyzing various subsets of data from the World Bank's 2016 annual report. Our focus will be on exploring politically charged topics such as the impact of air pollution, gun ownership, and access to abortion on life expectancy. By setting aside the rhetoric, we seek to understand what the data itself reveals. Each subsection of our analysis will begin with a quick introduction of the variables under consideration, and our methodology for examining these relationships. Through our data analysis, we hope to contribute a clearer understanding of these critical issues and the factors that influence human well-being.
 
 
 ## T Test - Claire
 
-*We are investigating whether the global average life expectancy in 2016 significantly differs from 75 years using a one sample t-test. The dataset consists of the variables "Country" (the country name) and "LifeExp" (life expectancy in years) from the 2016 World Bank data.*
+We are investigating whether the global average life expectancy in 2016 significantly differs from 75 years using a one sample t-test. The dataset consists of the variables “Country” (the country name) and “LifeExp” (life expectancy in years) from the 2016 World Bank data.
 
 ```{r, echo = FALSE}
 # Read data into object called 'wbtest'
@@ -64,14 +58,10 @@ summary(wbLife)
 t.test(wbLife$LifeExp, mu = 75)
 ```
 
-## Analysis - Claire
+The results from our one-sample t-test indicate a statistically significant difference from the hypothesized mean of 75 years for the global average life expectancy in 2016. The negative t-value shows that the sample mean is below the hypothesized mean. With an extremely low p-value, far below the alpha level of 0.05, we have strong evidence to reject the null hypothesis that the mean life expectancy is 75 years. This finding confirms that the mean life expectancy in 2016 is significantly lower than 75 years.
 
-*The results from our one-sample t-test indicate a statistically significant difference from the hypothesized mean of 75 years for the global average life expectancy in 2016. The negative t-value shows that the sample mean is below the hypothesized mean. With an extremely low p-value, far below the alpha level of 0.05, we have strong evidence to reject the null hypothesis that the mean life expectancy is 75 years. This finding confirms that the mean life expectancy in 2016 is significantly lower than 75 years.*
-
-
-## Permutation Test - Claire
-
-*For our permutation test, we want to see if air pollution significantly impacts life expectancy across different countries. Using the World Bank 2016 data variables "PM2.5" (mean annual exposure to air pollution) and "LifeExp", our hypothesis is that higher levels of air pollution are associated with lower life expectancy.*
+## Permutation Test
+For our permutation test, we want to see if air pollution significantly impacts life expectancy across different countries. Using the World Bank 2016 data variables “PM2.5” (mean annual exposure to air pollution) and “LifeExp”, our hypothesis is that higher levels of air pollution are associated with lower life expectancy
 
 ```{r, echo = FALSE}
 # Read data into object called 'wbtest'
@@ -103,7 +93,7 @@ mtext(paste("Correlation =", round(cor(wbLife2$PM2.5, wbLife2$LifeExp), 2)), lin
 cor.test(wbLife2$PM2.5, wbLife2$LifeExp)
 ```
 
-*The correlation is significant at alpha = .05 and .01, so there is evidence that there is statistically significant non-zero correlation between air pollution and life expectancy. So, let's see what happens when we use fake data.*
+The correlation is significant at alpha = .05 and .01, so there is evidence that there is statistically significant non-zero correlation between air pollution and life expectancy. So, let’s see what happens when we use fake data.
 
 ```{r, echo = FALSE}
 # Create FAKE data
@@ -114,13 +104,10 @@ fakeLifeExp <- sample(wbLife2$LifeExp)
 #cbind(wbLife2$PM2.5, fakeLifeExp)
 
 # Plot with FAKE data
-plot(wbLife2$PM2.5, fakeLifeExp, pch = 19, col = "seagreen", main = "")
 
-mtext("Fake Relationship Between Air Pollution & Life Expectancy", cex = 1.2, line = 1)
-mtext(paste("Correlation =", round(cor(wbLife2$PM2.5, fakeLifeExp), 2)), line = 0, cex = 1)
 ```
 
-*Now let's create a LOT of fake data and run the permutation test. We're going to get 10,000 fake correlations created on the assumption that there is no relationship between air pollution and life expectancy. Then, we'll see how often we see a correlation close to our actual value just by chance.*
+We’re going to get 10,000 fake correlations created on the assumption that there is no relationship between air pollution and life expectancy. Then, we’ll see how often we see a correlation close to our actual value just by chance by running the permutation test.
 
 ```{r, echo = FALSE}
 # Option for R to not use scientific notation
@@ -152,20 +139,20 @@ abline(v = cor(wbLife2$PM2.5, wbLife2$LifeExp), col = "blue", lwd = 3)
 text(cor(wbLife2$PM2.5, wbLife2$LifeExp)-.02, 200, paste("Actual Correlation =", round(cor(wbLife2$PM2.5, wbLife2$LifeExp), 2)), srt = 90)
 ```
 
-*The results from our permutation test reveal that the distribution of permuted correlations is normal and centered around zero. Since the actual observed correlation falls outside this distribution, this suggests that it is significantly different from what would be expected by random chance. This finding is further supported by a very low p-value, providing strong evidence that the observed correlation is statistically significant and suggesting a real association between air pollution and life expectancy.*
-
-
+The results from our permutation test reveal that the distribution of permuted correlations is normal and centered around zero. Since the actual observed correlation falls outside this distribution, this suggests that it is significantly different from what would be expected by random chance. This finding is further supported by a very low p-value, providing strong evidence that the observed correlation is statistically significant and suggesting a real association between air pollution and life expectancy.
 
 
 ## Correlation 
-We are performing a simple linear regression to model the relationship between infant mortality rate (per 1,000 live births) and measles immunization rate for infants 12 - 23 months old. The assumptions are random, normally distributed errors centered at zero with constant variance (homoskedasticity) and linearity between variables. Histograms show that Measles vaccination rates are heavily left-skewed, and infant mortality is heavily right-skewed.
+We are performing a simple linear regression to model the relationship between infant mortality rate (per 1,000 live births) and measles immunization rate for infants 12 - 23 months old. Our initial assumptions for this model include random errors that are normally distributed, centered at zero with constant variance (homoskedasticity), and a linear relationship between variables. The histograms below show that Measles vaccination rates are heavily left-skewed, and infant mortality is heavily right-skewed.
 
 ```{r}
 # remove NAs 
 mort <- na.omit(wb %>% dplyr::select(Measles,InfMort))
-hist(mort$Measles, col = "red", main = "Histogram of Measles Immunization Rate",xlab = "Measles Immunization Rate")
-hist(mort$InfMort, col = "orange", main = "Histogram of Infant Mortality Rate",xlab = "Infant Mortality Rate")
-
+par(mfrow = c(1,2))
+hist(mort$Measles, col = "red", main = "",xlab = "Measles Immunization Rate")
+mtext("Histogram of Measles Immunization Rate")
+hist(mort$InfMort, col = "orange", main = "",xlab = "Infant Mortality Rate")
+mtext("Histogram of Infant Mortality Rate")
 # fit linear regression model
 lm1 <- lm(InfMort ~ Measles, data = mort)
 
@@ -186,19 +173,20 @@ abline(lm1$coef, col = "blue", lwd = 3)
 summary(mort$Measles)
 ```
 
-There is a moderate to strong negative relationship between % Measles vaccinations and infant mortality. An R-squared of 0.31 means 31% of the variability in infant mortality rate is explained by the model. However, since measles immunization rates cluster near 100%, this causes issues with spread and variance. Residual plots can help investigate this further.
+Our initial analysis reveals a moderate to strong negative relationship between % measles vaccination rates and infant mortality. The R-squared of 0.31 indicates that 31% of the variability in infant mortality rate can be explained by this model. However, because the immunization rates are clustered near 100%, this causes issues with spread and variance. Residual plots can help us investigate this further.
 
 ```{r}
+
 myResPlots2(lm1)
 ```
 
-There looks to be some hetereoskedasticity in the fit vs studentized residuals, likely due to the extreme right skew of measles vacciination. This makes sense, as the median measles % vaccination is 93 and the mean is 87.21; most of the data is centered on the right.  Since measles vaccination is a percentage, we can perform logit transformation and see if this improves the fit. 
+The fit vs studentized residuals plot shows significant heteroscedasticity, likely resulting from the extreme right skew of the measles vaccination rates. This is expected, as the median vaccination rate is 93% and the mean is 97.21%, indicating that most data points are clustered on the high end of the scale. Give that measles vaccination is expressed as a percentage, applying a "logit" transformation may help stabilize the variance and improve the fit of the model. 
 ```{r}
 mort$logitMeasles <- logit(mort$Measles)
 hist(mort$logitMeasles, col = "violet", main = "histogram of logit % Measles Immunization", xlab = "logit % Measles Immunization")
 summary(mort$logitMeasles)
 ```
-After taking logit of % Measles vaccination, we can see in the histogram is more evenly distributed. There is still a left skew, but this is to be expected since countries still have high measles vaccination rates. With our transformed predictor, we make another scatterplot and fit a new regression model.
+After taking logit of % Measles vaccination, the data in the histogram appears more evenly distributed. There is still a left skew, but this is to be expected since countries still have high measles vaccination rates. With our transformed predictor, we generate another scatterplot and fit a new regression model. In the graphs below, we see how using logit measles vaccination rates show that the data is more evenly dispersed along the x axis. This transformation helps better meet the assumptions of linearity and homoscedasticity for linear models. The histogram of the measles vaccination rates is less skewed, and the residual plots indicates more equal variance and a better approximation of normality, resulting in an improved overall model fit. Although the R-squared value of 0.28 is less than the 0.31 in the previous model, the current model using the logit-transformed data is a better fit because it satisfies underlying assumptions more effectively. As discussed in our lectures, a higher R-squared value does not always signify the best model fit.
 
 ```{r}
 # fit linear regression model
@@ -214,17 +202,16 @@ plot(InfMort ~ logitMeasles, data = mort, main = "Infant Mortality Rate vs logit
      pch = 19, col = "red")
 mtext(paste("r = ", round(cor2, 2) ,", rsquared = ", round(cor2^2,2), ", slope = ", round(lm1$coef[2], 2)))
 abline(lm2$coef, col = "blue", lwd = 3)
-
+```
+```{r}
 
 myResPlots2(lm2)
 
 
 ```
 
-In the new scatter plot with logit measles, the data is more dispersed along the x axis. The spread and linear assumptions of correlation and linear models are better met with the transformed variable. The measles histogram is less skewed, the residual plot has less unequal variance, and the overall model fit is better with the transformed predictor variable.  Since R-squared is .28, 28% of the variability in infant mortality can be explained by this model. While this is lower than the squared value of the previous model (R-squared = .31), the current model with logit measles vaccination is a better fit since the underlying assumptions are better met. The best model fit isn't necessarily the model with the highest R-squared.
-
 ### Bootstrap CI for Correlation
-In order to check the slope we calculated using parametric tests, we employ non parametric bootstrapping in order to calculate confidence intervals for the slope between logit Measles immunization rate and infant mortality rate.
+To check the slope we calculated using parametric tests, we employ non-parametric bootstrapping to calculate confidence intervals for the slope between logit Measles immunization rate and infant mortality rate.
 
 ```{r}
 mort2 <- mort %>% dplyr::select(logitMeasles,InfMort)
@@ -261,38 +248,38 @@ legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red")
 
 ```
 
-The histograms above show the bootstrapped slopes. The bootstrapped confidence intervals are only a bit wider than the theoretical. This could mean that the linear model we fit approximated the assumptions of normality, homoskedasticity, and independence of errors. The bootstrapping is non parametric therefore capturing more of the true variability in the data.  We can look at normal quantile plots of the bootstrapped data to further visualize the bootstrapped distribution.
+The histograms of the bootstrapped slopes show that the bootstrapped confidence intervals are slightly wider than the theoretical confidence intervals. This suggests that while the linear model we fit approximated the assumptions of normality, homoskedasticity, and independence of errors, the non-parametric nature of bootstrapping captures more of the true variability in the data. To further visualize the bootstrapped distribution, we examine the normal quantile plots below. 
 
 ```{r}
 qqPlot(bResults, main = "Normal Quantile Plot of Bootstrapped Slopes")
 ```
-As expected, distributions for slope approximate normality. There is a slight right skew in the normal quantile plot of bootstrapped correlation which is also reflected in the histogram.The histogram for slope looks very near normal, and the data falls almost entirely along the straight line in the normal quantile plot. 
+As expected, the distributions for the slope approximate normality. There is a slight right skew in the normal quantile plot of bootstrapped correlation, which is also evident in the histogram. The histogram for slope appears very near normal, with the data falling almost entirely along the straight line in the normal quantile plot.
 
 ## Multiple regression
 
-*introduction, data explanation, variables, etc*
+We are curious in finding out how a country's military expenditure as a percent of its total spending is impacted based on total annual gun deaths per 100,000, the number of guns owned per 100 people, undetermined gun deaths per 100,000, Unintentional Gun Deaths per 100,000, percent income held by the top 10% of Earners, Mobile Cellular Subscriptions per 100 people, and CO2 emmisions in metric tons (t) per capita. The data we are using comes from the world bank dataset from 2016. We are motivated to find out what variables impact logit of military expenditure as percent of their GDP from the World Bank data set because I assume there is a positive relationship between gun related deaths, military expenditure and carbon emissions and want to discover the true relationship between these variables.
 
 ### look at response variable Military Expenditures
-```{r}
-#summary(wb$Military) #note: there are NA and 0 in data
-hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", xlab = "% military expenditure")
-qqPlot(wb$Military, main = "Military Expenditures (% of GDP)", pch = 19)
-```
+The data is heavily right-skewed and not normally distributed. After taking a logit transformation, which helps with probabilities or percentages,the data is more normally distributed. Due to zeros in the data, we added a small amount to each value. There are a  few potential outliers, spending more or less than expected on military. The box plot below shows these countries. 
 
-The data is heavily right-skewed and not normally distributed. These plots suggest using a logit transformation, which helps with probabilities or percentages. Due to zeros in the data, we add a small amount to each value to avoid issues with the logit function.
-
-```{r}
+```{r, warning=FALSE}
+summary(wb$Military) #note: there are NA and 0 in data
 #sort(wb$military)
 #wb$logitMilitary <- logit(wb$Military + .002)
 #wb$logitMilitary <- logit(wb$Military + .02)
 wb$logitMilitary <- logit(wb$Military + .2) # since there are zeros in the data
 
-hist(wb$logitMilitary, col = "pink", main = "Histogram of logit Military Expenditures % of GFP")
-qqPlot(wb$logitMilitary, pch = 19)
+```
+```{r}
+par(mfrow = c(1,2))
+hist(wb$Military, col = "red", main = "Military Expenditures (% of GDP)", xlab = "% military expenditure", cex.main = .8)
+
+hist(wb$logitMilitary, col = "pink", main = "logit Military Expenditures % of GDP", cex.main = .8)
+
 
 ```
 
-Now the data is more normally distributed. There are a  few potential outliers, spending more or less than expected on military. The box plot below shows these countries.
+
 
 ```{r, fig.height=6}
 boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "logit military expenditure",ylim = c(-7,-1),
@@ -301,17 +288,194 @@ boxplot.with.outlier.label(wb$logitMilitary, wb$Country, col = "red", ylab = "lo
 
 In this box plot, Haiti, Somalia, Panama, Iceland, and Costa Rica all have approximately 0% military expenditure. Oman and Saudi Arabia have relatively higher military expenditure compared to other countries in the 2016 World Bank dataset.
 
-*Now that our response variable is transformed, we can begin to look at the relationships with this transformed variable and some potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model*
+Now that our response variable, miltary expenditure, is transformed we begin to look at the relationships with this transformed variable and potential explanatory variables. First, we make correlation plot of all the possible predictors we want to include in our model. Here are the possible predictors we are including: total annual gun deaths per 100,000, the number of guns owned per 100 people, undetermined gun deaths per 100,000, Unintentional Gun Deaths per 100,000,percent income held by the top 10% of Earners, Mobile Cellular Subscriptions per 100 people, and CO2 emmisions in metric tons (t) per capita.
 ```{r}
+library(corrplot)
+# first I create a new object with all variables that were introduced
+# Creating a new variable in wb that has square root of Guns per 100
+wb$sqrtGuns100 <- sqrt(wb$GunsPer100)
+
+wbn1 <- na.omit(wb[, c("logitMilitary", "GunTotal", "GunsPer100","GunUndet","GunUnint","Cell","CO2", "IncomeTop10")])
+
+# Creating a new dataframe from wb that has just variables I want
+wbn2 <- (wb[, c("logitMilitary", "GunTotal", "sqrtGuns100","GunUndet","GunUnint","Cell","CO2", "IncomeTop10")])
+
+sigcorr <- cor.mtest(wbn1, conf.level =.95)
+corrplot.mixed(cor(wbn1),lower.col = "black", upper = "ellipse", tl.col = "black", number.cex = .7, tl.pos = "lt", tl.cex = .7, p.mat = sigcorr$p, sig.leve = .05)
+
+```
+Through the correlation matrix, it appears that none of the predictor variable are signifant enough to have a clear relationship with logit of the military expenditure. However, it appears that some of the predictor variables including Guns per 100 people , Unintential Gun Deaths per 100,000, and CO2 emmissions have a somewhat positive correlation with Military Expenditure on the logit scale while Mobile Cell Subscriptions per 100 people, and Percent income held by the Top 10% of Earners have a somewhat negative linear relationship with  Military Expenditure on the logit Scale.
+
+Next I create, individual scatterplots between each of the predictor variables and response variable. It appears
+```{r,fig.width=9}
+par(mfrow = c(2,3))
+# Total Annual Gun Deaths per 100,000 vs logit of % Military Expenditure
+plot(wb$GunTotal, wb$logitMilitary,xlab = "Total Annual Gun Deaths per 100,000",ylab = "logit of % Military Expenditure", main = "Annual Gun Deaths Per 100,000 vs logit of % Military Expenditure", cex.main = 0.7, pch = 19, col ="brown",cex.lab = .8)
+
+# Guns Owned Per 100 People vs logit of % Military Expenditure
+plot(wb$GunsPer100, wb$logitMilitary,xlab = "Guns Owned Per 100 People", ylab = "logit of % Military Expenditure", main = "Guns Owned Per 100 People vs logit of % Military Expenditure", cex.main = 0.7, pch =19, col ="orange",cex.lab = .8)
+
+
+# Undetermined Gun Deaths per 100,000 vs logit of % Military Expenditure
+plot(wb$Cell, wb$logitMilitary, xlab = "Mobile Cellular Subscriptions per 100 people", ylab = "Military Expenditures (% of GDP)", pch = 19, col = "blue", main = "Undetermined Gun Deaths per 100,000 vs logit of % Military Expenditure", cex.main = 0.7,cex.lab = .8)
+
+# Unintentional Gun Deaths per 100,000 vs logit of % Military Expenditure
+plot(wb$GunUnint, wb$logitMilitary, xlab = "Unintentional Gun Deaths per 100,000",ylab = "logit of % Military Expenditure", main = "Unintentional Gun Deaths per 100,000 vs logit of % Military Expenditure", cex.main = 0.7, pch =19, col = "yellow",cex.lab = .8)
+
+#CO2 emissions (t per capita) vs logit of % Military Expenditure
+plot(wb$CO2, wb$logitMilitary, xlab = "CO2 emissions (t per capita)", ylab = "Military Expenditures (% of GDP)", pch = 19, col = "blue", main = "CO2 emissions (t per capita) vs logit of % Military Expenditure", cex.main = 0.7,cex.lab = .8)
+
+# Percent Income Held by the Top 10% of Earners vs logit of % Military Expenditure
+plot(wb$IncomeTop10, wb$logitMilitary, xlab = "Percent Income help by Top 10% of Earners", ylab = "Military Expenditure (% of GDP)", col = "red", pch = 19, main = "%  Income Held by the Top 10% of Earners vs logit of % Military Expenditure", cex.main = 0.7,cex.lab = .8)
+
+#plot(wb$sqrtGuns100,wb$logitMilitary,xlab = "Square Root of Guns Owned Per 100 people",ylab = "logit of % Military Expenditure",main = "sqrt of Guns Owned per 100 people vs logit of % Military Expenditure", cex = 0.9, pch = 19, col ="green")
+
+```
+```{r, warning=F, fig.height=4, fig.width=5}
+plot(wb$sqrtGuns100,wb$logitMilitary,xlab = "Square Root of Guns Owned Per 100 people",ylab = "logit of % Military Expenditure",main = "sqrt of Guns Owned per 100 people vs logit of % Military Expenditure", cex = 0.7, pch = 19, col ="green", cex.main = .8)
+```
+Through these scatterplots of each predictor variable I observed that if the square root of Guns per 100 people is taken then the spread of data on the scatterplot vs Military Expenditure increases and their relationship can be better interpreted. I will now incorporate square root of Guns per 100 into the model instead of the raw version of the variable.
+
+```{r}
+# Creating a new dataframe from wb that has just variables I want
+wbn2 <- (wb[, c("logitMilitary", "GunTotal", "sqrtGuns100","GunUndet","GunUnint","Cell","CO2", "IncomeTop10")])
+
+```
+
+```{r, warning=FALSE}
+
+pairsJDRS(wbn2)
 
 ```
 
 
+Our relationships between the logit of Military Expenditure and each of the variables included appears to be either linear or in a blob shape. It appears that among our predictor variables, that there are some significant correlations between predictor variables including Total Gun Deaths per 100,000 vs Undetermined Gun Deaths per 100,000 people and Mobile Cellular Subscriptions vs Carbon Emissions in metric tons per capita. This will result in collinearity within our regression model. The most significant relationships between our response variable and predictor variables were the logit of Military Expenditure & CO2 Emssions per Capita and logit of Military Expenditure & Income in the top 10% of individuals. It appears that the correlation between logit of Military Expenditure and Income in the top 10% of individuals was negative and this was significant at a pvalue of 0.05 or less from a t distribution.
+
+
+Now I am going to fit a regression model including all possible predictors for logit of Military Expenditure
+```{r}
+# Original  Regression model with all predictors
+lm1 <- lm(logitMilitary ~ GunTotal + sqrtGuns100 + GunUndet + GunUnint + Cell + CO2 + IncomeTop10, data = wbn2)
+
+summary(lm1)
+
+```
+From the summary of our model, it appears that none of the predictors are statistically significant and although there are 217 observations of logit Military expenditure in our original dataset, the total number of observations deleted among all predictors due to missingness was 204. I decided to perform backwards stepwise regression on the model to see if any of our predictors would become significant.
+
+```{r}
+lm1 <- lm(logitMilitary ~ GunTotal + sqrtGuns100 + GunUndet + GunUnint + Cell + CO2, data = wbn2)
+#After taking out Percent Income Held by Top 10 % of Earners CO2 emissions becomes statistically significant
+summary(lm1)
+
+#Here is our linear model after backwards stepwise regression is performed and all variables become statistically significant
+lm2 <- lm(logitMilitary ~ CO2, data = wbn2) # Only CO2 in this model is statistically significant
+summary(lm2)
+```
+Through backwards regression of the model, one predictor variable was left to predict the logit of Military expenditures which was CO2 emissions. This variable is highly significant at a pvalue on the t distribtution of 0.001**. This model however does not have a very high R squared value which is only 0.04 meaning that only around 4 percent of the variability in Military Expenditure on the logit scale can be explained by CO2 emissions. It appears that there is a positive correlation however and as carbon emission increase, there is expected to be a higher military expenditure in a country.
+
+
+Now instead of using backwards stepwise regression, I will use best subsets regression on all of our original variables to see which model among all possible models could predict logit of military expenditure the best.
+
+```{r}
+
+# Get best subsets results from the world bank data set with predictor variables of interest for response variable Military Expenditure on logit scale
+
+mod1 <- regsubsets(logitMilitary ~ ., data = wbn2, nvmax = 7)
+dim(wbn2)
+
+names(mod1)
+mod1sum <- summary(mod1)
+
+# Now I am looking at which predictor is the best for measuring logit of Military Expenditure in only a model with a single predictor
+mod1sum$which
+
+# It appears that IncomeTop10 is the best predictor in this case
+
+# A new model is created based off of best subsets regression results 
+lmbsr <- lm(logitMilitary ~ IncomeTop10, data = wbn2)
+
+summary(lmbsr)
+```
+
+It appears that after using best subsets regression on logitMilitary expenditure based on the predictor variables chosen (Total Gun Deaths, Square Root of Number of Gun Deaths, Undeterimned Gun Deaths, Unintentional Gun Deaths, Mobile Cellular Subscriptions per 100 people, Carbon emissions in metric tons per capita, and percent income held by the top 10% of Earners ) that of the models with a single predictor, the single best predictor for Military Expenditures was Percent Income Held by the Top 10% of Earners. It turns that that the best model with 3 predictors contains CO2 emissions, Unintentional Gun Deaths and the square root of the number of Guns per 100,000. 
+
+For every additional predictors added, an additional dimensional will also be added to the regression model,and r squared will increase as a result. Since this is the case, I want to find the model that will penalize additional predictor variables and this is done by determining the model according to adjusted r squared.
+
+
+```{r}
+# Best model According to R-Squared
+plot(mod1, main = "Best Model According to R-Squared", scale = "r2")
+
+# Best model according to Adjusted R- Squared
+which.max(mod1sum$adjr2)
+
+# Find which variables are in model 5
+names(wbn2)[mod1sum$which[which.max(mod1sum$adjr2) , ]][-1]
+
+# Fit the model and show results
+wbtemp <- wbn2[,mod1sum$which[which.max(mod1sum$adjr2), ]]
+
+summary(lm(logitMilitary ~ ., data = wbtemp))
+
+plot(mod1, main = "Best Model According to Adjusted R-Squared" , scale = "adjr2")
+```
+According to the model with the highest R-Squared all 7 predictors of Logit Military Expenditure % should be included, however, this is only because R squared increases as the dimensionality increases in our model and thus it is likely not the case that all 7 predictors explain 0.35 of the variability in logit of Military Expenditue as % of a counrty's GDP.
+
+Adjusted R squared penalizes extra predictor variables in our model which weren't accounted for in our model where highest r squared value was taken. In this case, Total Gun Deaths per 100,000, the square root of the number of guns per 100 people, unintentional gun deaths per 100,000 people, mobile cellular subscriptions per 100 people, and carbon emissions in metric tons result in the model with the highest adjusted r squared value. In addition Carbon emissions in metric tons is a singificant statistic although 159 observations of the original 217 have been deleted and the model only has a multiple r squared value of 0.1224. Even with these predictors having a large adjusted r squared value not alot of the variability in Military Expenditure can be explained by the predictors.
+
+Now, I will look at best model according to Bayesian Information Criteria
+
+
+```{r}
+which.min(mod1sum$bic)
+
+names(wbn2)[mod1sum$which[which.min(mod1sum$bic), ]][-1]
+
+# Fit this model and show results
+wbtemp2 <- wbn2[,mod1sum$which[which.min(mod1sum$bic),]]
+summary(lm(logitMilitary~., data = wbtemp2))
+
+```
+According to our Bayesian Information Criterion for our models for logit of military expenditure, the model with the lowest Bayesian Information criterion had 3 predictor variables which were the square root of Guns per 100 people, Unintentional Gun deaths per 100,000 people and carbon emissions per person in metric tons. This models criterion metric was set by measuring the likelihood of the model occuring, the number of parameters in the mdoel and the number of observations. It appears that our r-squared value is 0.10 which is around the rsquared value from our other models including the adjusted r squared model and the significance for Carbon Emissions in this model is still high (at a low pvalue). As carbon emissions increases in the model, we can expect the logit of military expenditure in % GDP of a country to increase.
+
+Next I will look at the best model according to AIC
+
+```{r}
+npred <- length(mod1sum$bic)
+AICvec <- rep(NA,npred)
+for (i in 1:npred){
+  wbtemp3 <- wbn2[,mod1sum$which[i,]]
+  AICvec[i] <- AIC(lm(logitMilitary ~., data = wbtemp3))
+}
+
+AICvec
+
+wbtemp3 <- wbn2[,mod1sum$which[which.min(AICvec), ]]
+summary(lm(logitMilitary ~ .,data = wbtemp3))
+```
+From the results of all of the best subsets regression functions including AIC, BIC , Adjusted R squared and Backwards Stepwise regression, I decided to include the model from the Bayesian Information Criterion since it's most significant predictor variable had the lowest p-value for highest adjusted r squared value (0.05) with the most predictor variables kept in the model (3). This adjusted r squared value is still relatively low but it is the best of all models.
+
+Now I will examine the model residuals based on this BIC model with 3 predictors
+
+```{r}
+
+modfin <- lm(logitMilitary ~ ., data = wbtemp2)
+
+summary(modfin)
+
+myResPlots2(modfin, label = "Logit Military Expenditure as % GDP")
+
+```
+According to our residuals it appears that for the most part our errors for logit of military expenditures are approximately normally distributed with some exceptions on the lower end of the normal quantile plot. We could infer that these countries had very low military expenditure as part of their overall GDP. In addition, there are 2 outliers that have a standard deviation of over 3 although the rest of the studentized residuals appear evenly scattered with no evidence of heteroskedasticity in the model.
+
+Results and Discussion:
+
+After performing various types of best subsets regression including exhaustive search and forward selection, the criterion I decided to use for our model was Bayesian Information Criterion which included the predictor variables the square root of Guns per 100 people, the number of unintentional gun deaths per 100,000 people, and carbon emissions per person in metric tons which were used to predict military expenditure on the log scale. I chose this criterion in particular because when compared to the other criterion including backwards step wise regression, the adjusted r squared value and the exhaustive search method for best subsets regression, it had the largest r squared (0.1071) and adjusted r squared (0.05731) value with the most number of significant variables (although there was only 1). The most significant predictor variable was Carbon. emissions per person in metric tons which was significant at a pvalue of 0.0143. In the model, as carbon emissions per person of a country increases we can expect that the logit of Military expenditure to increase as well by 0.0479. 
+
+
 
 ## 2-Way ANOVA
-
-### Introduction
-We are interested in predicting life expectancy based on some categorical variables a data set concerning global abortion laws concerning self-managed abortion. More information can be found [here](https://legacy.lawatlas.org/datasets/global-medication-abortion-laws). We want to understand how allowing abortions in abortion designated health facilities ('healthfacility') and penalizing individuals seeking abortions ('penalpreg') affects life expectancy. We clean the Global Medication Data (GMA) by converting non 1 and 0 values to NA and recoding 1 as Yes and 0 as No. Then, we join the GMA and World bank dataset by country, and remove rows with NAs. The resulting dataframe has 143 unique countries. We begin the analysis using boxplots to examine the life expectancy distributions for each level of 'healthfacility' and 'penalpreg'. The variance and life expectancy differences across groups are minimal.
+For our two-way ANOVA, we will examine how the allowance of abortions in abortion-designated health facilities (‘healthfacility’) and the penalization of individuals seeking abortions (‘penalpreg’) affect life expectancy. Specifically, we are interested in predicting life expectancy based on categorical variables related to global abortion laws concerning self-managed abortion. Detailed information on the data can be found [here](https://legacy.lawatlas.org/datasets/global-medication-abortion-laws). We will clean the Global Medication Data (GMA) by converting non 1 and 0 values to NA, and recoding 1 as 'Yes' and 0 as 'No'. Next, we join the GMA and World bank datasets by country and remove incomplete entries. The resulting dataframe contains 143 unique countries. We begin our analysis with boxplots to examine the life expectancy distributions for each level of ‘healthfacility’ and ‘penalpreg’. The variance and differences in life expectancy across groups are minimal.
 
 ```{r, results='hide'}
 GMA <- read_xlsx("/Users/lilybroach/Desktop/YaleSDS230/final_proj/GMA_data.xlsx")
@@ -339,25 +503,24 @@ mtext("Distribution of Life Expectancy by", line = 1)
 mtext("Abortion Legality in Health Facility and Penalization")
 ```
 
-Now we want to check interactions between the categorical variables and continuous variable. The lines are not parallel, suggesting a potential interaction effect between penalizing a pregnant woman for abortion ('penalpreg') and allowing abortions in designated health facilities ('healthfacility'). For penalized women, countries permitting abortions in health facilities have a slightly higher mean life expectancy. Conversely, for non-penalized women, countries not permitting abortions in  health facilities have a higher mean life expectancy. However, this plot is not a statistical test.
+Now we want to look for potential interactions between the categorical variables and the continuous variable. The lines in our interaction plot are not parallel, suggesting a potential interaction effect between penalizing a pregnant woman for abortion (‘penalpreg’) and allowing abortions in designated health facilities (‘healthfacility’). For penalized women, countries permitting abortions in health facilities show a slightly higher mean life expectancy. Conversely, for non-penalized women, countries not permitting abortions in health facilities exhibit a higher mean life expectancy. This plot should be viewed as a visual indicator that helps inform our subsequent analysis and is not a statistical test. 
 
 ```{r}
 interaction.plot(wbGMA2$healthfacility,wbGMA2$penalpreg, wbGMA2$LifeExp, type = 'b', lwd = 3, col = c('red','blue','black'), main = "Interaction Plot",)
 mtext("Between Penalty for Pregnant Individual & Legal in Healthcare Facility")
 ```
 
-It is also important to note that we have a small sample size and an unbalanced design as seen in the table below, the number of observations in each group is not the same.
+It is also important to note that we have a small sample size and an unbalanced design, as shown in the table below, indicating that the number of observations in each group is not equal.
 ```{r}
 table(wbGMA2$penalpreg,wbGMA2$healthfacility)
 
 ```
 
+Our two-way ANOVA with the interaction term found no significant relationships. A simplified, additive ANOVA without the interaction showed a significant main effect of ‘healthfacility’, indicating that performing abortions in government health facilities significantly affects life expectancy. The linear model predicting life expectancy by ‘penalpreg’ and ‘healthfacility’ without the interaction effect yielded a significant F statistic P value of 0.015, lower than the interaction model (P = 0.03), indicating a better fit. According to the linear model coefficients, when 'healthfacility' is "Yes", the 'LifeExp' increases by an average of 3.744 years compared to when 'healthfacility' is "No". However, the adjusted R-squared was only 0.04, explaining just 4% of the variance in life expectancy, suggesting that this model is not the best fit. This is likely due to the small sample size, the presence of only one significant effect, and an unbalanced design.
 
+In the graphs below, the residuals are approximately normally distributed with no major violations of equal variances. However, some non-conforming data in the right tail likely result from life expectancy being left-skewed, with a maximum of about 84 years. In a normal distribution, the maximum value would be higher, balancing the upper right tail.
 
-We ran a two-way ANOVA with 'penalpreg,' 'healthfacility,' and their interaction. None were significant. A second additive ANOVA without the interaction showed a significant main effect of 'healthfacility' only. Abortions in government health facilities significantly affect life expectancy. Running a linear model gave a significant F statistic  P value of 0.015, lower than the model with the interaction (P = 0.03), indicating a better fit. However, the adjusted R-squared is 0.04, explaining only 4% of the variance in life expectancy. The model may not explain the data well due to the small sample size and only one significant effect, in addition to it being an unbalanced ANOVA.
-
-```{r, results='hide'}
-
+```{r}
 aov1 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
 Anova(aov1, type = 'III')
 #taking out insig interaction
@@ -366,12 +529,8 @@ Anova(aov1, type = 'III')
 aov2 <- aov(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility)
 Anova(aov2, type = 'III')
 
-lm1 <- lm(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility + wbGMA2$penalpreg*wbGMA2$healthfacility)
-summary(lm1)
-
 lm2 <- lm(wbGMA2$LifeExp ~ wbGMA2$penalpreg + wbGMA2$healthfacility)
 summary(lm2)
-
 
 ```
 
@@ -383,10 +542,5 @@ myResPlots2(aov1)
 
 ```
 
-
-```{r}
-
-```
-
-
-## conclusion and summary
+## Conclusion 
+This exercise was illuminating, revealing that some anticipated significant relationships between variables were not supported by our statistical tests. We found evidence that the mean life expectancy in 2016 is significantly lower than 75 years and that there is a real association between air pollution and life expectancy. Our analysis suggests that life expectancy may increase in countries where abortions are performed in government health facilities, measles vaccinations could potentially decrease infant mortality rates, and a country's military expenditures may correlate with its carbon emissions. Further statistical research is needed to confirm these hypotheses, and we anticipate continued study of these intriguing global issues. 
